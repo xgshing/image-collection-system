@@ -50,7 +50,7 @@
     "quickapp" : {},
 
     "mp-weixin" : {
-        "appid" : "wx0566172699bf1361",
+        "appid": "your_wechat_miniprogram_appid",
         "setting" : {
             "urlCheck" : false
         },
