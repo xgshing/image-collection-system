@@ -1,0 +1,33 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Local private files
+_local/
+*.key
+*.pem
+*.p12
+*.jks
+
+# Logs
+*.log
+*.err
+
+# Frontend build
+frontend/unpackage/
+
+# Backend build
+backend/build/
+backend/.gradle/
+
+# Backend runtime files
+backend/uploads/
+
+# Local config secrets
+backend/src/main/resources/application-prod.yaml
+backend/src/main/resources/application-local.yaml

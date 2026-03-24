@@ -1,0 +1,31 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/image_collection?useSSL=false&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+wechat:
+  miniapp:
+    app-id: ${WECHAT_MINIAPP_APP_ID:}
+    app-secret: ${WECHAT_MINIAPP_SECRET:}
+
+storage:
+  type: cos
+  local-dir: uploads
+  local-base-path: /uploads
+  public-base-url: https://api.yuntuxia.top
+  cos:
+    secret-id: ${COS_SECRET_ID:}
+    secret-key: ${COS_SECRET_KEY:}
+    region: ${COS_REGION:}
+    bucket: ${COS_BUCKET:}
+    public-url-prefix: ${COS_PUBLIC_URL_PREFIX:}
+    key-prefix: image-collection

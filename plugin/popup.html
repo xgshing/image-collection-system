@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>图片收藏助手</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<div class="app-shell">
+    <section id="loginSection" class="panel">
+        <div class="panel-header">
+            <div>
+                <div class="eyebrow">跨端同步</div>
+                <h1>微信扫码登录插件</h1>
+            </div>
+            <button id="refreshLoginBtn" class="icon-button" type="button">刷新</button>
+        </div>
+
+        <p class="panel-text">请用手机端小程序点击“扫码登录插件”，扫描下方二维码完成确认。</p>
+
+        <div class="qr-card">
+            <img id="qrImage" class="qr-image" alt="插件登录二维码" />
+            <div id="loginStatus" class="login-status">正在生成二维码...</div>
+        </div>
+    </section>
+
+    <section id="collectSection" class="panel" style="display:none;">
+        <div class="panel-header">
+            <div class="user-badge">
+                <img id="avatarPreview" class="user-avatar" alt="用户头像" />
+                <div>
+                    <div class="eyebrow">已登录</div>
+                    <div id="nicknameDisplay" class="user-name">微信用户</div>
+                </div>
+            </div>
+            <button id="logoutBtn" class="icon-button" type="button">退出</button>
+        </div>
+
+        <div class="preview-card">
+            <img id="preview" class="preview-image" alt="待收藏图片预览" />
+        </div>
+
+        <label class="field-label" for="tagInput">标签</label>
+        <input id="tagInput" class="text-input" placeholder="输入标签，多个标签用逗号分隔" />
+        <button id="saveBtn" class="primary-button" type="button">收藏图片</button>
+    </section>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
