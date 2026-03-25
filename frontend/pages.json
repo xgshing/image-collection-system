@@ -19,12 +19,6 @@
 			}
 		},
 		{
-			"path": "pages/tag/tag",
-			"style": {
-				"navigationBarTitleText": ""
-			}
-		},
-		{
 			"path": "pages/agreement/detail",
 			"style": {
 				"navigationBarTitleText": "协议详情"

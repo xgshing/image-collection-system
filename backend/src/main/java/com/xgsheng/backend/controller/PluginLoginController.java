@@ -1,5 +1,8 @@
 package com.xgsheng.backend.controller;
 
+import com.xgsheng.backend.auth.AuthContext;
+import com.xgsheng.backend.entity.User;
+import com.xgsheng.backend.service.AuthService;
 import com.xgsheng.backend.service.WechatMiniProgramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +26,12 @@ public class PluginLoginController {
     private static final long SESSION_TTL_MILLIS = 5 * 60 * 1000L;
     private static final ConcurrentHashMap<String, LoginSession> SESSIONS = new ConcurrentHashMap<>();
     private final WechatMiniProgramService wechatMiniProgramService;
+    private final AuthService authService;
 
-    public PluginLoginController(WechatMiniProgramService wechatMiniProgramService) {
+    public PluginLoginController(WechatMiniProgramService wechatMiniProgramService,
+                                 AuthService authService) {
         this.wechatMiniProgramService = wechatMiniProgramService;
+        this.authService = authService;
     }
 
     @PostMapping("/session")
@@ -81,14 +87,14 @@ public class PluginLoginController {
 
         LoginSession session = SESSIONS.get(token);
         if (session == null) {
-            return buildStatus("expired", null, null);
+            return buildStatus("expired", null, null, null);
         }
 
         if (session.confirmedAt != null) {
-            return buildStatus("confirmed", session.profile, session.confirmedAt);
+            return buildStatus("confirmed", session.profile, session.confirmedAt, session.sessionToken);
         }
 
-        return buildStatus("pending", null, null);
+        return buildStatus("pending", null, null, null);
     }
 
     @PostMapping("/confirm")
@@ -98,26 +104,30 @@ public class PluginLoginController {
         String token = stringValue(params.get("token"));
         LoginSession session = SESSIONS.get(token);
         if (session == null) {
-            return buildStatus("expired", null, null);
+            return buildStatus("expired", null, null, null);
         }
 
-        String nickName = stringValue(params.get("nickName"));
-        String avatarUrl = stringValue(params.get("avatarUrl"));
-        if (nickName.isBlank() || avatarUrl.isBlank()) {
-            return buildStatus("invalid_profile", null, null);
-        }
+        User user = AuthContext.requireUser();
 
         Map<String, Object> profile = new LinkedHashMap<>();
-        profile.put("nickName", nickName);
-        profile.put("avatarUrl", avatarUrl);
+        profile.put("userId", user.getId());
+        profile.put("nickName", stringValue(user.getNickName()));
+        profile.put("avatarUrl", stringValue(user.getAvatarUrl()));
 
+        session.userId = user.getId();
         session.profile = profile;
         session.confirmedAt = Instant.now().toString();
+        if (session.sessionToken == null || session.sessionToken.isBlank()) {
+            session.sessionToken = authService.createSessionToken(user.getId());
+        }
 
-        return buildStatus("confirmed", profile, session.confirmedAt);
+        return buildStatus("confirmed", profile, session.confirmedAt, session.sessionToken);
     }
 
-    private static Map<String, Object> buildStatus(String status, Map<String, Object> profile, String confirmedAt) {
+    private static Map<String, Object> buildStatus(String status,
+                                                   Map<String, Object> profile,
+                                                   String confirmedAt,
+                                                   String sessionToken) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", status);
         if (profile != null) {
@@ -125,6 +135,9 @@ public class PluginLoginController {
         }
         if (confirmedAt != null) {
             result.put("confirmedAt", confirmedAt);
+        }
+        if (sessionToken != null && !sessionToken.isBlank()) {
+            result.put("sessionToken", sessionToken);
         }
         return result;
     }
@@ -139,6 +152,8 @@ public class PluginLoginController {
     }
 
     private static class LoginSession {
+        private Long userId;
+        private String sessionToken;
         private long expiresAt;
         private Map<String, Object> profile;
         private String confirmedAt;

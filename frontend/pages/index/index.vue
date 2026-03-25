@@ -59,7 +59,11 @@
         class="tag-search"
         placeholder="搜索标签，例如 UI、海报、插画"
       />
-      <view class="filter">
+      <view
+        class="filter"
+        :class="{ collapsed: shouldCollapseTags }"
+        :style="filterStyle"
+      >
         <view
           v-for="item in filteredTagList"
           :key="item.value"
@@ -69,6 +73,10 @@
         >
           {{ item.label }}
         </view>
+      </view>
+      <view v-if="showTagToggle" class="filter-toggle" @click="toggleTagExpand">
+        <text>{{ tagsExpanded ? '收起标签' : '展开全部标签' }}</text>
+        <text class="filter-toggle-arrow" :class="{ expanded: tagsExpanded }">⌄</text>
       </view>
     </view>
 
@@ -199,18 +207,22 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import baseUrl from '../../utils/base-url'
 import resolveImageUrl from '../../utils/image-url'
+import { request } from '../../utils/request'
 import {
+  clearSessionToken,
   clearPluginLoginToken,
   getPluginLoginToken,
   getPrivacyConsent,
+  getSessionToken,
   getUserProfile,
   setPluginLoginToken,
   setLoginCode,
   setPrivacyConsent,
+  setSessionToken,
   setUserProfile
 } from '../../utils/auth'
 
@@ -231,6 +243,9 @@ const pendingAvatarUrl = ref('')
 const pendingNickname = ref('')
 const pendingPluginLoginToken = ref('')
 const tagKeyword = ref('')
+const tagsExpanded = ref(false)
+const tagOverflow = ref(false)
+const collapsedTagHeight = ref(0)
 
 const defaultAvatar = '/static/logo.png'
 const defaultNickname = '微信用户'
@@ -254,6 +269,17 @@ const filteredTagList = computed(() => {
   return tagList.value.filter((item) => (
     item.value === '' || item.label.toLowerCase().includes(keyword)
   ))
+})
+const shouldCollapseTags = computed(() => !tagKeyword.value.trim() && !tagsExpanded.value && tagOverflow.value)
+const showTagToggle = computed(() => !tagKeyword.value.trim() && tagOverflow.value)
+const filterStyle = computed(() => {
+  if (!shouldCollapseTags.value || !collapsedTagHeight.value) {
+    return {}
+  }
+
+  return {
+    maxHeight: `${collapsedTagHeight.value}px`
+  }
 })
 
 const goCollect = () => {
@@ -319,7 +345,7 @@ const requestList = (tagValue = '') => {
     title: '加载中...'
   })
 
-  uni.request({
+  request({
     url: `${baseUrl}/api/image/list`,
     data: tagValue ? { tag: tagValue } : {},
     success(res) {
@@ -357,7 +383,7 @@ const requestTags = () => {
     return
   }
 
-  uni.request({
+  request({
     url: `${baseUrl}/api/image/tags`,
     success(res) {
       if (res.statusCode !== 200 || !Array.isArray(res.data)) {
@@ -369,6 +395,7 @@ const requestTags = () => {
         { label: '全部', value: '' },
         ...res.data.map((tag) => ({ label: tag, value: tag }))
       ]
+      tagsExpanded.value = false
 
       if (currentTag.value && !tagList.value.some((item) => item.value === currentTag.value)) {
         requestList('')
@@ -384,6 +411,39 @@ const reloadPage = () => {
 
 const filterByTag = (tag) => {
   requestList(tag.value)
+}
+
+const toggleTagExpand = () => {
+  tagsExpanded.value = !tagsExpanded.value
+}
+
+const measureTagOverflow = async () => {
+  await nextTick()
+
+  if (!isLoggedIn.value || !filteredTagList.value.length) {
+    tagOverflow.value = false
+    collapsedTagHeight.value = 0
+    return
+  }
+
+  const query = uni.createSelectorQuery()
+  query.selectAll('.filter-item').boundingClientRect()
+  query.exec((result) => {
+    const rects = Array.isArray(result?.[0]) ? result[0].filter(Boolean) : []
+    if (!rects.length) {
+      tagOverflow.value = false
+      collapsedTagHeight.value = 0
+      return
+    }
+
+    const firstTop = rects[0].top
+    const firstRowRects = rects.filter((item) => Math.abs(item.top - firstTop) < 1)
+    const firstRowHeight = firstRowRects.reduce((height, item) => Math.max(height, item.height || 0), rects[0].height || 0)
+    const hasMoreThanOneRow = rects.some((item) => Math.abs(item.top - firstTop) > 1)
+
+    collapsedTagHeight.value = firstRowHeight
+    tagOverflow.value = hasMoreThanOneRow
+  })
 }
 
 const handleImageError = (item) => {
@@ -458,6 +518,7 @@ const requestWechatPrivacyAuthorize = () => new Promise((resolve, reject) => {
 
 const saveAuthorizedProfile = (profile) => {
   const normalizedProfile = {
+    userId: profile?.userId || userProfile.value?.userId || null,
     nickName: profile?.nickName || defaultNickname,
     avatarUrl: profile?.avatarUrl || defaultAvatar
   }
@@ -487,9 +548,26 @@ const runLoginFlow = async () => {
     }
 
     setLoginCode(loginRes.code)
+    const authRes = await request({
+      url: `${baseUrl}/api/auth/miniapp/login`,
+      method: 'POST',
+      auth: false,
+      data: {
+        code: loginRes.code,
+        nickName: pendingNickname.value,
+        avatarUrl: pendingAvatarUrl.value
+      }
+    })
+
+    if (authRes.statusCode !== 200 || !authRes.data?.sessionToken) {
+      throw new Error('session token missing')
+    }
+
+    setSessionToken(authRes.data.sessionToken)
     saveAuthorizedProfile({
-      nickName: pendingNickname.value,
-      avatarUrl: pendingAvatarUrl.value
+      userId: authRes.data.userId,
+      nickName: authRes.data.nickName || pendingNickname.value,
+      avatarUrl: authRes.data.avatarUrl || pendingAvatarUrl.value
     })
 
     uni.showToast({
@@ -500,6 +578,7 @@ const runLoginFlow = async () => {
     loadPageData()
   } catch (error) {
     console.error('runLoginFlow failed', error)
+    clearSessionToken()
     uni.showToast({
       title: '未完成登录授权',
       icon: 'none'
@@ -557,19 +636,12 @@ const confirmPluginLogin = async (token) => {
     return false
   }
 
-  const profile = userProfile.value || {}
-  const confirmRes = await new Promise((resolve, reject) => {
-    uni.request({
-      url: `${baseUrl}/api/plugin/login/confirm`,
-      method: 'POST',
-      data: {
-        token,
-        nickName: profile.nickName,
-        avatarUrl: profile.avatarUrl
-      },
-      success: resolve,
-      fail: reject
-    })
+  const confirmRes = await request({
+    url: `${baseUrl}/api/plugin/login/confirm`,
+    method: 'POST',
+    data: {
+      token
+    }
   })
 
   if (confirmRes.statusCode !== 200 || confirmRes.data?.status !== 'confirmed') {
@@ -667,7 +739,7 @@ onLoad((options) => {
     ? userProfile.value.nickName
     : ''
 
-  if (hasConsented.value && profileCompleted.value) {
+  if (hasConsented.value && profileCompleted.value && getSessionToken()) {
     loadPageData()
   }
 
@@ -684,7 +756,7 @@ onShow(() => {
     ? userProfile.value.nickName
     : pendingNickname.value
 
-  if (!profileCompleted.value) {
+  if (!profileCompleted.value || !getSessionToken()) {
     return
   }
 
@@ -695,6 +767,19 @@ onShow(() => {
   }
 
   tryConfirmPendingPluginLogin()
+})
+
+watch(filteredTagList, () => {
+  measureTagOverflow()
+}, { deep: true })
+
+watch(tagKeyword, () => {
+  if (tagKeyword.value.trim()) {
+    tagsExpanded.value = true
+  } else {
+    tagsExpanded.value = false
+  }
+  measureTagOverflow()
 })
 </script>
 
@@ -843,10 +928,14 @@ onShow(() => {
 
 .filter {
   display: flex;
+  flex-wrap: wrap;
   gap: 16rpx;
   margin-top: 20rpx;
-  overflow-x: auto;
-  white-space: nowrap;
+  overflow: hidden;
+}
+
+.filter.collapsed {
+  overflow: hidden;
 }
 
 .tag-search {
@@ -870,6 +959,27 @@ onShow(() => {
 .filter-item.active {
   background: #dfe9ff;
   color: #2d6cdf;
+}
+
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #2d6cdf;
+}
+
+.filter-toggle-arrow {
+  font-size: 24rpx;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+}
+
+.filter-toggle-arrow.expanded {
+  transform: rotate(180deg);
 }
 
 .continue-card {

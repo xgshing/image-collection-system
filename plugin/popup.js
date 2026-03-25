@@ -12,6 +12,7 @@ const defaultAvatar = "data:image/svg+xml;utf8," + encodeURIComponent(`
 let imageUrl = "";
 let pollingTimer = null;
 let currentToken = "";
+let currentSessionToken = "";
 
 const loginSection = document.getElementById("loginSection");
 const collectSection = document.getElementById("collectSection");
@@ -26,17 +27,24 @@ const saveBtn = document.getElementById("saveBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
 const getStoredProfile = () => new Promise((resolve) => {
-    chrome.storage.local.get(["userProfile"], (res) => {
-        resolve(res.userProfile || null);
+    chrome.storage.local.get(["userProfile", "sessionToken"], (res) => {
+        if (!res.userProfile || !res.sessionToken) {
+            resolve(null);
+            return;
+        }
+        resolve({
+            profile: res.userProfile,
+            sessionToken: res.sessionToken
+        });
     });
 });
 
-const setStoredProfile = (profile) => new Promise((resolve) => {
-    chrome.storage.local.set({ userProfile: profile }, resolve);
+const setStoredProfile = (profile, sessionToken) => new Promise((resolve) => {
+    chrome.storage.local.set({ userProfile: profile, sessionToken }, resolve);
 });
 
 const clearStoredProfile = () => new Promise((resolve) => {
-    chrome.storage.local.remove(["userProfile"], resolve);
+    chrome.storage.local.remove(["userProfile", "sessionToken"], resolve);
 });
 
 const normalizeBaseUrl = (value) => {
@@ -79,6 +87,18 @@ const updatePreviewImage = () => {
     };
 };
 
+const fetchWithAuth = (url, options = {}) => {
+    const headers = { ...(options.headers || {}) };
+    if (currentSessionToken) {
+        headers.Authorization = "Bearer " + currentSessionToken;
+    }
+
+    return fetch(url, {
+        ...options,
+        headers
+    });
+};
+
 const createLoginSession = async () => {
     stopPolling();
     showLoginSection();
@@ -115,8 +135,9 @@ const checkLoginStatus = async () => {
     }
 
     const result = await response.json();
-    if (result.status === "confirmed" && result.profile) {
-        await setStoredProfile(result.profile);
+    if (result.status === "confirmed" && result.profile && result.sessionToken) {
+        currentSessionToken = result.sessionToken;
+        await setStoredProfile(result.profile, result.sessionToken);
         showCollectSection(result.profile);
         return;
     }
@@ -128,8 +149,8 @@ const checkLoginStatus = async () => {
 };
 
 const saveImage = async () => {
-    const profile = await getStoredProfile();
-    if (!profile) {
+    const storedAuth = await getStoredProfile();
+    if (!storedAuth || !storedAuth.sessionToken) {
         alert("请先完成扫码登录");
         return;
     }
@@ -140,13 +161,13 @@ const saveImage = async () => {
         .filter(Boolean)
         .join(",");
 
-    const response = await fetch(baseUrl + "/api/image/saveByUrl", {
+    currentSessionToken = storedAuth.sessionToken;
+    const response = await fetchWithAuth(baseUrl + "/api/image/saveByUrl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             url: imageUrl,
-            tags,
-            userProfile: profile
+            tags
         })
     });
 
@@ -163,9 +184,10 @@ const initialize = async () => {
         imageUrl = res.imageUrl || "";
         updatePreviewImage();
 
-        const profile = await getStoredProfile();
-        if (profile) {
-            showCollectSection(profile);
+        const storedAuth = await getStoredProfile();
+        if (storedAuth?.profile && storedAuth?.sessionToken) {
+            currentSessionToken = storedAuth.sessionToken;
+            showCollectSection(storedAuth.profile);
             return;
         }
 
@@ -185,6 +207,7 @@ refreshLoginBtn.addEventListener("click", async () => {
 logoutBtn.addEventListener("click", async () => {
     await clearStoredProfile();
     currentToken = "";
+    currentSessionToken = "";
     tagInput.value = "";
     await createLoginSession();
 });

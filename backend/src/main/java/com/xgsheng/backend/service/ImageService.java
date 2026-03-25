@@ -7,17 +7,17 @@ import java.util.List;
 
 public interface ImageService {
 
-    String saveByUrl(String url, String tags);
+    String saveByUrl(Long userId, String url, String tags);
 
-    String upload(MultipartFile file, String tags);
+    String upload(Long userId, MultipartFile file, String tags);
 
-    List<?> list(String tag);
+    List<?> list(Long userId, String tag);
 
-    Image detail(Long id);
+    Image detail(Long userId, Long id);
 
-    List<String> listTags();
+    List<String> listTags(Long userId);
 
-    boolean updateTags(Long id, String tags);
+    boolean updateTags(Long userId, Long id, String tags);
 
-    boolean delete(Long id);
+    boolean delete(Long userId, Long id);
 }

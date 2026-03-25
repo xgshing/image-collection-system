@@ -11,15 +11,15 @@ public interface ImageMapper {
 
     void insert(Image image);
 
-    Image findByMd5(@Param("md5") String md5);
+    Image findByMd5(@Param("userId") Long userId, @Param("md5") String md5);
 
-    Image findById(@Param("id") Long id);
+    Image findById(@Param("userId") Long userId, @Param("id") Long id);
 
-    List<Image> findByTag(@Param("tag") String tag);
+    List<Image> findByTag(@Param("userId") Long userId, @Param("tag") String tag);
 
-    List<Image> findAll();
+    List<Image> findAll(@Param("userId") Long userId);
 
-    List<String> findAllTagNames();
+    List<String> findAllTagNames(@Param("userId") Long userId);
 
     List<String> findTagNamesByImageId(@Param("imageId") Long imageId);
 
@@ -31,5 +31,9 @@ public interface ImageMapper {
 
     void deleteImageTagByImageId(@Param("imageId") Long imageId);
 
-    void deleteById(@Param("id") Long id);
+    void deleteById(@Param("userId") Long userId, @Param("id") Long id);
+
+    void updateCreateTime(@Param("userId") Long userId,
+                          @Param("id") Long id,
+                          @Param("createTime") java.util.Date createTime);
 }

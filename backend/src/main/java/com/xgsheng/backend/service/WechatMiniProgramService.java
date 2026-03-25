@@ -39,6 +39,44 @@ public class WechatMiniProgramService {
         return properties.isConfigured();
     }
 
+    public MiniappSessionInfo exchangeCodeForSession(String code) throws IOException, InterruptedException {
+        if (!isConfigured()) {
+            throw new IllegalStateException("wechat miniapp config missing");
+        }
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("code is required");
+        }
+
+        String url = "https://api.weixin.qq.com/sns/jscode2session"
+                + "?appid=" + urlEncode(properties.getAppId())
+                + "&secret=" + urlEncode(properties.getAppSecret())
+                + "&js_code=" + urlEncode(code)
+                + "&grant_type=authorization_code";
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        JsonNode node = objectMapper.readTree(response.body());
+
+        if (!node.path("errcode").isMissingNode() && node.path("errcode").asInt() != 0) {
+            throw new IllegalStateException("jscode2session failed: " + node.path("errmsg").asText("unknown error"));
+        }
+
+        String openId = node.path("openid").asText();
+        if (openId == null || openId.isBlank()) {
+            throw new IllegalStateException("openid missing");
+        }
+
+        MiniappSessionInfo info = new MiniappSessionInfo();
+        info.setOpenId(openId);
+        info.setSessionKey(node.path("session_key").asText(""));
+        return info;
+    }
+
     public byte[] createPluginLoginCode(String token) throws IOException, InterruptedException {
         String accessToken = getAccessToken();
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -103,5 +141,26 @@ public class WechatMiniProgramService {
 
     private String urlEncode(String value) {
         return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+    }
+
+    public static class MiniappSessionInfo {
+        private String openId;
+        private String sessionKey;
+
+        public String getOpenId() {
+            return openId;
+        }
+
+        public void setOpenId(String openId) {
+            this.openId = openId;
+        }
+
+        public String getSessionKey() {
+            return sessionKey;
+        }
+
+        public void setSessionKey(String sessionKey) {
+            this.sessionKey = sessionKey;
+        }
     }
 }

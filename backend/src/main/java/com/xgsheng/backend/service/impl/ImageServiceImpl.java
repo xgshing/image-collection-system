@@ -15,8 +15,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class ImageServiceImpl implements ImageService {
@@ -31,20 +34,21 @@ public class ImageServiceImpl implements ImageService {
     private CosStorageClient cosStorageClient;
 
     @Override
-    public String saveByUrl(String url, String tags) {
+    public String saveByUrl(Long userId, String url, String tags) {
         try {
             byte[] bytes = DownloadUtil.download(url);
             String md5 = Md5Util.getMD5(bytes);
 
-            Image exist = imageMapper.findByMd5(md5);
+            Image exist = imageMapper.findByMd5(userId, md5);
             if (exist != null) {
+                touchImage(userId, exist.getId(), tags);
                 return exist.getLocalUrl();
             }
 
             String savedUrl = saveBytes(bytes);
-            Image image = buildImage(url, savedUrl, md5);
+            Image image = buildImage(userId, url, savedUrl, md5);
             imageMapper.insert(image);
-            bindTags(image.getId(), tags);
+            bindTags(image.getId(), parseTags(tags));
 
             return image.getLocalUrl();
         } catch (Exception e) {
@@ -53,20 +57,21 @@ public class ImageServiceImpl implements ImageService {
     }
 
     @Override
-    public String upload(MultipartFile file, String tags) {
+    public String upload(Long userId, MultipartFile file, String tags) {
         try {
             byte[] bytes = file.getBytes();
             String md5 = Md5Util.getMD5(bytes);
 
-            Image exist = imageMapper.findByMd5(md5);
+            Image exist = imageMapper.findByMd5(userId, md5);
             if (exist != null) {
+                touchImage(userId, exist.getId(), tags);
                 return exist.getLocalUrl();
             }
 
             String savedUrl = saveBytes(bytes);
-            Image image = buildImage(null, savedUrl, md5);
+            Image image = buildImage(userId, null, savedUrl, md5);
             imageMapper.insert(image);
-            bindTags(image.getId(), tags);
+            bindTags(image.getId(), parseTags(tags));
 
             return image.getLocalUrl();
         } catch (Exception e) {
@@ -75,17 +80,17 @@ public class ImageServiceImpl implements ImageService {
     }
 
     @Override
-    public List<Image> list(String tag) {
+    public List<Image> list(Long userId, String tag) {
         List<Image> images = (tag == null || tag.isBlank())
-                ? imageMapper.findAll()
-                : imageMapper.findByTag(tag);
+                ? imageMapper.findAll(userId)
+                : imageMapper.findByTag(userId, tag);
         images.forEach(this::fillTags);
         return images;
     }
 
     @Override
-    public Image detail(Long id) {
-        Image image = imageMapper.findById(id);
+    public Image detail(Long userId, Long id) {
+        Image image = imageMapper.findById(userId, id);
         if (image != null) {
             fillTags(image);
         }
@@ -93,38 +98,37 @@ public class ImageServiceImpl implements ImageService {
     }
 
     @Override
-    public List<String> listTags() {
-        return imageMapper.findAllTagNames();
+    public List<String> listTags(Long userId) {
+        return imageMapper.findAllTagNames(userId);
     }
 
     @Override
-    public boolean updateTags(Long id, String tags) {
-        Image image = imageMapper.findById(id);
+    public boolean updateTags(Long userId, Long id, String tags) {
+        Image image = imageMapper.findById(userId, id);
         if (image == null) {
             return false;
         }
 
-        imageMapper.deleteImageTagByImageId(id);
-        bindTags(id, tags);
+        replaceTags(id, parseTags(tags));
         return true;
     }
 
     @Override
-    public boolean delete(Long id) {
-        Image image = imageMapper.findById(id);
+    public boolean delete(Long userId, Long id) {
+        Image image = imageMapper.findById(userId, id);
         if (image == null) {
             return false;
         }
 
         imageMapper.deleteImageTagByImageId(id);
-        imageMapper.deleteById(id);
+        imageMapper.deleteById(userId, id);
         deleteStoredFile(image.getLocalUrl());
         return true;
     }
 
-    private Image buildImage(String url, String localUrl, String md5) {
+    private Image buildImage(Long userId, String url, String localUrl, String md5) {
         Image image = new Image();
-        image.setUserId(null);
+        image.setUserId(userId);
         image.setUrl(url);
         image.setLocalUrl(localUrl);
         image.setMd5(md5);
@@ -172,16 +176,10 @@ public class ImageServiceImpl implements ImageService {
         return basePath + "/" + fileName;
     }
 
-    private void bindTags(Long imageId, String tags) {
-        if (imageId == null || tags == null || tags.isBlank()) {
+    private void bindTags(Long imageId, List<String> tagNames) {
+        if (imageId == null || tagNames == null || tagNames.isEmpty()) {
             return;
         }
-
-        List<String> tagNames = Arrays.stream(tags.split(","))
-                .map(String::trim)
-                .filter(tag -> !tag.isBlank())
-                .distinct()
-                .collect(Collectors.toList());
 
         for (String tag : tagNames) {
             Long tagId = imageMapper.findTagIdByName(tag);
@@ -198,6 +196,43 @@ public class ImageServiceImpl implements ImageService {
 
     private void fillTags(Image image) {
         image.setTags(imageMapper.findTagNamesByImageId(image.getId()));
+    }
+
+    private void touchImage(Long userId, Long imageId, String tags) {
+        if (userId == null || imageId == null) {
+            return;
+        }
+
+        List<String> existingTags = imageMapper.findTagNamesByImageId(imageId);
+        List<String> mergedTags = Stream.concat(existingTags.stream(), parseTags(tags).stream())
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toCollection(LinkedHashSet::new),
+                        List::copyOf
+                ));
+
+        imageMapper.updateCreateTime(userId, imageId, new Date());
+        replaceTags(imageId, mergedTags);
+    }
+
+    private void replaceTags(Long imageId, List<String> tagNames) {
+        if (imageId == null) {
+            return;
+        }
+
+        imageMapper.deleteImageTagByImageId(imageId);
+        bindTags(imageId, tagNames);
+    }
+
+    private List<String> parseTags(String tags) {
+        if (tags == null || tags.isBlank()) {
+            return List.of();
+        }
+
+        Set<String> normalizedTags = Arrays.stream(tags.split("[,，]"))
+                .map(String::trim)
+                .filter(tag -> !tag.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        return List.copyOf(normalizedTags);
     }
 
     private void deleteStoredFile(String localUrl) {

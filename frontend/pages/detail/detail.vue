@@ -95,6 +95,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import baseUrl from '../../utils/base-url'
 import resolveImageUrl from '../../utils/image-url'
+import { request } from '../../utils/request'
 
 const REFRESH_KEY = 'image_list_should_refresh'
 const AVAILABLE_TAGS_KEY = 'collect_available_tags'
@@ -116,7 +117,7 @@ const requestDetail = () => {
     title: '加载中...'
   })
 
-  uni.request({
+  request({
     url: `${baseUrl}/api/image/${imageId.value}`,
     success(res) {
       if (res.statusCode !== 200 || !res.data) {
@@ -160,7 +161,7 @@ const handleTagClick = (tag) => {
 }
 
 const requestTagOptions = () => {
-  uni.request({
+  request({
     url: `${baseUrl}/api/image/tags`,
     success(res) {
       if (res.statusCode !== 200 || !Array.isArray(res.data)) {
@@ -188,7 +189,7 @@ const updateTags = (nextTags) => {
     title: '保存中...'
   })
 
-  uni.request({
+  request({
     url: `${baseUrl}/api/image/${imageId.value}/tags`,
     method: 'POST',
     data: {
@@ -261,7 +262,7 @@ const deleteImage = () => {
     title: '删除中...'
   })
 
-  uni.request({
+  request({
     url: `${baseUrl}/api/image/delete/${imageId.value}`,
     method: 'POST',
     success(res) {

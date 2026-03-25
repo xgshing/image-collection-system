@@ -10,11 +10,15 @@
     </insert>
 
     <select id="findByMd5" resultType="com.xgsheng.backend.entity.Image">
-        SELECT * FROM image WHERE md5 = #{md5} LIMIT 1
+        SELECT * FROM image
+        WHERE user_id = #{userId} AND md5 = #{md5}
+            LIMIT 1
     </select>
 
     <select id="findById" resultType="com.xgsheng.backend.entity.Image">
-        SELECT * FROM image WHERE id = #{id} LIMIT 1
+        SELECT * FROM image
+        WHERE user_id = #{userId} AND id = #{id}
+            LIMIT 1
     </select>
 
     <select id="findByTag" resultType="com.xgsheng.backend.entity.Image">
@@ -22,19 +26,24 @@
         FROM image i
         INNER JOIN image_tag it ON i.id = it.image_id
         INNER JOIN tag t ON it.tag_id = t.id
-        WHERE t.name = #{tag}
+        WHERE i.user_id = #{userId} AND t.name = #{tag}
         ORDER BY i.create_time DESC
     </select>
 
     <select id="findAll" resultType="com.xgsheng.backend.entity.Image">
-        SELECT * FROM image ORDER BY create_time DESC
+        SELECT * FROM image
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
     </select>
 
     <select id="findAllTagNames" resultType="java.lang.String">
-        SELECT DISTINCT t.name
-        FROM tag t
-        INNER JOIN image_tag it ON t.id = it.tag_id
-        ORDER BY t.name ASC
+        SELECT t.name
+        FROM image i
+        INNER JOIN image_tag it ON i.id = it.image_id
+        INNER JOIN tag t ON t.id = it.tag_id
+        WHERE i.user_id = #{userId}
+        GROUP BY t.id, t.name
+        ORDER BY COUNT(*) DESC, t.name ASC
     </select>
 
     <select id="findTagNamesByImageId" resultType="java.lang.String">
@@ -64,7 +73,13 @@
     </delete>
 
     <delete id="deleteById">
-        DELETE FROM image WHERE id = #{id}
+        DELETE FROM image WHERE user_id = #{userId} AND id = #{id}
     </delete>
+
+    <update id="updateCreateTime">
+        UPDATE image
+        SET create_time = #{createTime}
+        WHERE user_id = #{userId} AND id = #{id}
+    </update>
 
 </mapper>

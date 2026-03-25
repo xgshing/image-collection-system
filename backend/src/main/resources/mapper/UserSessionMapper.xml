@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.xgsheng.backend.mapper.UserSessionMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_session(user_id, session_token, expires_at, create_time)
+        VALUES (#{userId}, #{sessionToken}, #{expiresAt}, NOW())
+    </insert>
+
+    <select id="findBySessionToken" resultType="com.xgsheng.backend.entity.UserSession">
+        SELECT id,
+               user_id,
+               session_token,
+               expires_at,
+               create_time
+        FROM user_session
+        WHERE session_token = #{sessionToken}
+            LIMIT 1
+    </select>
+
+    <delete id="deleteExpired">
+        DELETE FROM user_session
+        WHERE expires_at &lt; #{now}
+    </delete>
+
+    <delete id="deleteBySessionToken">
+        DELETE FROM user_session
+        WHERE session_token = #{sessionToken}
+    </delete>
+
+</mapper>

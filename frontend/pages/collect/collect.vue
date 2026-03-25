@@ -108,6 +108,7 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import baseUrl from '../../utils/base-url'
+import { request, uploadFile } from '../../utils/request'
 
 const REFRESH_KEY = 'image_list_should_refresh'
 const AVAILABLE_TAGS_KEY = 'collect_available_tags'
@@ -220,7 +221,7 @@ const syncAvailableTags = (tags = []) => {
 }
 
 const requestAvailableTags = () => {
-  uni.request({
+  request({
     url: `${baseUrl}/api/image/tags`,
     success(res) {
       if (res.statusCode === 200 && Array.isArray(res.data)) {
@@ -232,7 +233,7 @@ const requestAvailableTags = () => {
 
 const uploadImage = (image) =>
   new Promise((resolve, reject) => {
-    uni.uploadFile({
+    uploadFile({
       url: `${baseUrl}/api/image/upload`,
       filePath: image.path,
       name: 'file',
