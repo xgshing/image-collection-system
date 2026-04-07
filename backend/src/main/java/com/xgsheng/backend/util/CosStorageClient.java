@@ -16,12 +16,12 @@ import java.util.Locale;
 @Component
 public class CosStorageClient {
 
-    public void upload(StorageProperties.Cos cos, String key, byte[] bytes) {
+    public void upload(StorageProperties.Cos cos, String key, byte[] bytes, String contentType) {
         COSClient client = buildClient(cos);
         try {
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(bytes.length);
-            metadata.setContentType("image/jpeg");
+            metadata.setContentType((contentType == null || contentType.isBlank()) ? "image/jpeg" : contentType);
 
             PutObjectRequest request = new PutObjectRequest(
                     cos.getBucket(),

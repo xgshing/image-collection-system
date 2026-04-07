@@ -1,6 +1,5 @@
 export const PRIVACY_CONSENT_KEY = 'privacy_consent_accepted'
 export const USER_PROFILE_KEY = 'user_profile'
-export const LOGIN_CODE_KEY = 'login_code'
 export const PLUGIN_LOGIN_TOKEN_KEY = 'plugin_login_token'
 export const SESSION_TOKEN_KEY = 'session_token'
 
@@ -17,10 +16,6 @@ export const getUserProfile = () => {
 
 export const setUserProfile = (profile) => {
   uni.setStorageSync(USER_PROFILE_KEY, profile)
-}
-
-export const setLoginCode = (code) => {
-  uni.setStorageSync(LOGIN_CODE_KEY, code || '')
 }
 
 export const getSessionToken = () => uni.getStorageSync(SESSION_TOKEN_KEY) || ''

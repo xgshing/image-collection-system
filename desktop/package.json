@@ -1,0 +1,40 @@
+{
+  "name": "image-collection-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Desktop client for image collection import and export workflows.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^36.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.xgsheng.imagecollection.desktop",
+    "productName": "云图匣桌面端",
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

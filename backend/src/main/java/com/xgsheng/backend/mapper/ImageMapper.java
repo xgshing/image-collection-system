@@ -17,6 +17,8 @@ public interface ImageMapper {
 
     List<Image> findByTag(@Param("userId") Long userId, @Param("tag") String tag);
 
+    List<Image> findByTags(@Param("userId") Long userId, @Param("tags") List<String> tags);
+
     List<Image> findAll(@Param("userId") Long userId);
 
     List<String> findAllTagNames(@Param("userId") Long userId);
@@ -30,6 +32,12 @@ public interface ImageMapper {
     void insertImageTag(@Param("imageId") Long imageId, @Param("tagId") Long tagId);
 
     void deleteImageTagByImageId(@Param("imageId") Long imageId);
+
+    void deleteImageTagByUserIdAndTagId(@Param("userId") Long userId, @Param("tagId") Long tagId);
+
+    void insertImageTagForUserImagesByTagId(@Param("userId") Long userId,
+                                            @Param("sourceTagId") Long sourceTagId,
+                                            @Param("targetTagId") Long targetTagId);
 
     void deleteById(@Param("userId") Long userId, @Param("id") Long id);
 

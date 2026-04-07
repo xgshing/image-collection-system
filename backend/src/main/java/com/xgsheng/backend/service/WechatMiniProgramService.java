@@ -84,6 +84,7 @@ public class WechatMiniProgramService {
         payload.put("page", "pages/index/index");
         payload.put("check_path", false);
         payload.put("width", 430);
+        payload.put("env_version", properties.getCodeEnvVersion());
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=" + accessToken))

@@ -30,6 +30,19 @@
         ORDER BY i.create_time DESC
     </select>
 
+    <select id="findByTags" resultType="com.xgsheng.backend.entity.Image">
+        SELECT DISTINCT i.*
+        FROM image i
+        INNER JOIN image_tag it ON i.id = it.image_id
+        INNER JOIN tag t ON it.tag_id = t.id
+        WHERE i.user_id = #{userId}
+          AND t.name IN
+          <foreach collection="tags" item="tag" open="(" separator="," close=")">
+              #{tag}
+          </foreach>
+        ORDER BY i.create_time DESC
+    </select>
+
     <select id="findAll" resultType="com.xgsheng.backend.entity.Image">
         SELECT * FROM image
         WHERE user_id = #{userId}
@@ -71,6 +84,23 @@
     <delete id="deleteImageTagByImageId">
         DELETE FROM image_tag WHERE image_id = #{imageId}
     </delete>
+
+    <delete id="deleteImageTagByUserIdAndTagId">
+        DELETE it
+        FROM image_tag it
+        INNER JOIN image i ON i.id = it.image_id
+        WHERE i.user_id = #{userId} AND it.tag_id = #{tagId}
+    </delete>
+
+    <insert id="insertImageTagForUserImagesByTagId">
+        INSERT INTO image_tag(image_id, tag_id)
+        SELECT DISTINCT i.id, #{targetTagId}
+        FROM image i
+        INNER JOIN image_tag source_it ON source_it.image_id = i.id AND source_it.tag_id = #{sourceTagId}
+        LEFT JOIN image_tag target_it ON target_it.image_id = i.id AND target_it.tag_id = #{targetTagId}
+        WHERE i.user_id = #{userId}
+          AND target_it.image_id IS NULL
+    </insert>
 
     <delete id="deleteById">
         DELETE FROM image WHERE user_id = #{userId} AND id = #{id}

@@ -43,7 +43,7 @@
             class="tag"
             @click="managing ? removeTag(tag) : handleTagClick(tag)"
           >
-            {{ tag }}<text v-if="managing"> x</text>
+            {{ tag }}<text v-if="managing"> ×</text>
           </view>
         </view>
         <view v-else class="empty-tags">还没有标签，先补 1 到 3 个会更容易回找。</view>
@@ -109,32 +109,19 @@ const filteredTagOptions = ref([])
 const showTagDropdown = ref(false)
 
 const requestDetail = () => {
-  if (!imageId.value) {
-    return
-  }
-
-  uni.showLoading({
-    title: '加载中...'
-  })
-
+  if (!imageId.value) return
+  uni.showLoading({ title: '加载中...' })
   request({
     url: `${baseUrl}/api/image/${imageId.value}`,
     success(res) {
       if (res.statusCode !== 200 || !res.data) {
-        uni.showToast({
-          title: '加载失败',
-          icon: 'none'
-        })
+        uni.showToast({ title: '加载失败', icon: 'none' })
         return
       }
-
       imageInfo.value = res.data
     },
     fail() {
-      uni.showToast({
-        title: '加载失败',
-        icon: 'none'
-      })
+      uni.showToast({ title: '加载失败', icon: 'none' })
     },
     complete() {
       uni.hideLoading()
@@ -143,31 +130,20 @@ const requestDetail = () => {
 }
 
 const previewImage = () => {
-  if (!imageInfo.value?.localUrl) {
-    return
-  }
-
+  if (!imageInfo.value?.localUrl) return
   const imageUrl = resolveImageUrl(imageInfo.value.localUrl)
-  uni.previewImage({
-    current: imageUrl,
-    urls: [imageUrl]
-  })
+  uni.previewImage({ current: imageUrl, urls: [imageUrl] })
 }
 
 const handleTagClick = (tag) => {
-  uni.navigateTo({
-    url: `/pages/index/index?tag=${tag}`
-  })
+  uni.navigateTo({ url: `/pages/index/index?tag=${tag}` })
 }
 
 const requestTagOptions = () => {
   request({
     url: `${baseUrl}/api/image/tags`,
     success(res) {
-      if (res.statusCode !== 200 || !Array.isArray(res.data)) {
-        return
-      }
-
+      if (res.statusCode !== 200 || !Array.isArray(res.data)) return
       tagOptions.value = res.data
       filteredTagOptions.value = res.data
       syncAvailableTags(res.data)
@@ -185,38 +161,23 @@ const toggleManage = () => {
 }
 
 const updateTags = (nextTags) => {
-  uni.showLoading({
-    title: '保存中...'
-  })
-
+  uni.showLoading({ title: '保存中...' })
   request({
     url: `${baseUrl}/api/image/${imageId.value}/tags`,
     method: 'POST',
-    data: {
-      tags: nextTags.join(',')
-    },
+    data: { tags: nextTags.join(',') },
     success(res) {
       if (res.statusCode !== 200 || res.data !== true) {
-        uni.showToast({
-          title: '保存失败',
-          icon: 'none'
-        })
+        uni.showToast({ title: '保存失败', icon: 'none' })
         return
       }
-
       imageInfo.value.tags = nextTags
       uni.setStorageSync(REFRESH_KEY, 1)
       requestTagOptions()
-      uni.showToast({
-        title: '已保存',
-        icon: 'none'
-      })
+      uni.showToast({ title: '已保存', icon: 'none' })
     },
     fail() {
-      uni.showToast({
-        title: '保存失败',
-        icon: 'none'
-      })
+      uni.showToast({ title: '保存失败', icon: 'none' })
     },
     complete() {
       uni.hideLoading()
@@ -226,10 +187,7 @@ const updateTags = (nextTags) => {
 
 const addTag = () => {
   const value = tagInput.value.trim()
-  if (!value || !imageInfo.value) {
-    return
-  }
-
+  if (!value || !imageInfo.value) return
   const nextTags = [...new Set([...(imageInfo.value.tags || []), value])]
   updateTags(nextTags)
   tagInput.value = ''
@@ -237,10 +195,7 @@ const addTag = () => {
 }
 
 const removeTag = (tag) => {
-  if (!imageInfo.value) {
-    return
-  }
-
+  if (!imageInfo.value) return
   const nextTags = (imageInfo.value.tags || []).filter((item) => item !== tag)
   updateTags(nextTags)
 }
@@ -248,47 +203,32 @@ const removeTag = (tag) => {
 const confirmDelete = () => {
   uni.showModal({
     title: '删除收藏',
-    content: '这会在收藏中移除图片。',
+    content: '这会在收藏中移除这张图片。',
     success(res) {
-      if (res.confirm) {
-        deleteImage()
-      }
+      if (res.confirm) deleteImage()
     }
   })
 }
 
 const deleteImage = () => {
-  uni.showLoading({
-    title: '删除中...'
-  })
-
+  uni.showLoading({ title: '删除中...' })
   request({
     url: `${baseUrl}/api/image/delete/${imageId.value}`,
     method: 'POST',
     success(res) {
       if (res.statusCode !== 200 || res.data !== true) {
-        uni.showToast({
-          title: '删除失败',
-          icon: 'none'
-        })
+        uni.showToast({ title: '删除失败', icon: 'none' })
         return
       }
-
       uni.setStorageSync(REFRESH_KEY, 1)
       requestTagOptions()
-      uni.showToast({
-        title: '已删除',
-        icon: 'none'
-      })
+      uni.showToast({ title: '已删除', icon: 'none' })
       setTimeout(() => {
         uni.navigateBack()
       }, 400)
     },
     fail() {
-      uni.showToast({
-        title: '删除失败',
-        icon: 'none'
-      })
+      uni.showToast({ title: '删除失败', icon: 'none' })
     },
     complete() {
       uni.hideLoading()
@@ -303,8 +243,7 @@ const syncAvailableTags = (tags = []) => {
 const filterTagOptions = () => {
   const keyword = tagInput.value.trim()
   filteredTagOptions.value = tagOptions.value.filter((tag) => (
-    !imageInfo.value?.tags?.includes(tag) &&
-    (!keyword || tag.includes(keyword))
+    !imageInfo.value?.tags?.includes(tag) && (!keyword || tag.includes(keyword))
   ))
   showTagDropdown.value = true
 }
@@ -330,168 +269,31 @@ onLoad((options) => {
 </script>
 
 <style>
-.page {
-  min-height: 100vh;
-  background: #f7f8fa;
-}
-
-.container {
-  padding: 24rpx;
-}
-
-.image-wrapper,
-.info-card,
-.tag-card,
-.manage-box,
-.danger-box {
-  border-radius: 24rpx;
-  box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06);
-}
-
-.image-wrapper {
-  padding: 20rpx;
-  background: #000;
-  overflow: hidden;
-}
-
-.info-card,
-.tag-card,
-.manage-box {
-  margin-top: 24rpx;
-  padding: 24rpx;
-  background: #fff;
-}
-
-.danger-box {
-  margin-top: 24rpx;
-  padding: 24rpx;
-  background: #fff6f5;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-
-.section-title {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #222;
-}
-
-.section-tip {
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  line-height: 1.7;
-  color: #6b7280;
-}
-
-.info-list {
-  margin-top: 18rpx;
-}
-
-.info-row {
-  display: flex;
-  flex-direction: column;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #eef2f7;
-}
-
-.info-row:last-child {
-  border-bottom: none;
-}
-
-.info-label {
-  font-size: 22rpx;
-  color: #86909c;
-}
-
-.info-value {
-  margin-top: 8rpx;
-  font-size: 26rpx;
-  line-height: 1.7;
-  color: #1f2329;
-}
-
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  margin-top: 16rpx;
-}
-
-.tag {
-  margin: 0 16rpx 16rpx 0;
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  background: #eef4ff;
-  color: #2d6cdf;
-  font-size: 26rpx;
-}
-
-.empty-tags {
-  margin-top: 16rpx;
-  color: #666;
-  font-size: 26rpx;
-}
-
-.tag-input-row {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  margin-top: 20rpx;
-}
-
-.tag-input {
-  flex: 1;
-  min-height: 76rpx;
-  padding: 0 20rpx;
-  border-radius: 18rpx;
-  background: #f7f8fa;
-}
-
-.subheading {
-  margin-top: 24rpx;
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #1f2329;
-}
-
-.tag-dropdown {
-  margin-top: 12rpx;
-  border-radius: 12rpx;
-  background: #f7f8fa;
-  overflow: hidden;
-}
-
-.tag-option {
-  padding: 16rpx 20rpx;
-  border-bottom: 1rpx solid #e6e8eb;
-  font-size: 26rpx;
-  color: #333;
-}
-
-.tag-option:last-child {
-  border-bottom: none;
-}
-
-.header-delete-btn {
-  background: #d93025;
-  color: #fff;
-}
-
-image {
-  width: 100%;
-  transition: opacity 0.3s ease;
-}
-
-button {
-  border-radius: 999rpx;
-}
+.page { min-height: 100vh; background: #f7f8fa; }
+.container { padding: 24rpx; }
+.image-wrapper, .info-card, .tag-card, .manage-box, .danger-box { border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); }
+.image-wrapper { padding: 20rpx; background: #000; overflow: hidden; }
+.info-card, .tag-card, .manage-box { margin-top: 24rpx; padding: 24rpx; background: #fff; }
+.danger-box { margin-top: 24rpx; padding: 24rpx; background: #fff6f5; }
+.section-header { display: flex; align-items: center; justify-content: space-between; }
+.header-actions { display: flex; align-items: center; gap: 16rpx; }
+.section-title { font-size: 30rpx; font-weight: 700; color: #222; }
+.section-tip { margin-top: 8rpx; font-size: 24rpx; line-height: 1.7; color: #6b7280; }
+.info-list { margin-top: 18rpx; }
+.info-row { display: flex; flex-direction: column; padding: 16rpx 0; border-bottom: 1rpx solid #eef2f7; }
+.info-row:last-child { border-bottom: none; }
+.info-label { font-size: 22rpx; color: #86909c; }
+.info-value { margin-top: 8rpx; font-size: 26rpx; line-height: 1.7; color: #1f2329; }
+.tag-list { display: flex; flex-wrap: wrap; margin-top: 16rpx; }
+.tag { margin: 0 16rpx 16rpx 0; padding: 10rpx 18rpx; border-radius: 999rpx; background: #eef4ff; color: #2d6cdf; font-size: 26rpx; }
+.empty-tags { margin-top: 16rpx; color: #666; font-size: 26rpx; }
+.tag-input-row { display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; }
+.tag-input { flex: 1; min-height: 76rpx; padding: 0 20rpx; border-radius: 18rpx; background: #f7f8fa; }
+.subheading { margin-top: 24rpx; font-size: 26rpx; font-weight: 600; color: #1f2329; }
+.tag-dropdown { margin-top: 12rpx; border-radius: 12rpx; background: #f7f8fa; overflow: hidden; }
+.tag-option { padding: 16rpx 20rpx; border-bottom: 1rpx solid #e6e8eb; font-size: 26rpx; color: #333; }
+.tag-option:last-child { border-bottom: none; }
+.header-delete-btn { background: #d93025; color: #fff; }
+image { width: 100%; transition: opacity 0.3s ease; }
+button { border-radius: 999rpx; }
 </style>

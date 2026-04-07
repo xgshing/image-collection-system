@@ -6,6 +6,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.iml
+**/.idea/
 
 # Local private files
 _local/
@@ -17,6 +18,7 @@ _local/
 # Logs
 *.log
 *.err
+coscli_output/
 
 # Frontend build
 frontend/unpackage/
@@ -27,6 +29,13 @@ backend/.gradle/
 
 # Backend runtime files
 backend/uploads/
+
+# Desktop build
+desktop/node_modules/
+desktop/release/
+
+# Local package outputs
+dist/
 
 # Local config secrets
 backend/src/main/resources/application-prod.yaml

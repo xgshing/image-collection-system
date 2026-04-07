@@ -1,35 +1,73 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
-		{
-			"path": "pages/index/index",
-			"style": {
-				"navigationBarTitleText": "uni-app"
-			}
-		},
-		{
-			"path": "pages/collect/collect",
-			"style": {
-				"navigationBarTitleText": ""
-			}
-		},
-		{
-			"path": "pages/detail/detail",
-			"style": {
-				"navigationBarTitleText": ""
-			}
-		},
-		{
-			"path": "pages/agreement/detail",
-			"style": {
-				"navigationBarTitleText": "协议详情"
-			}
-		}
-	],
-	"globalStyle": {
-		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
-	},
-	"uniIdRouter": {}
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "云图匣"
+      }
+    },
+    {
+      "path": "pages/plugin/plugin",
+      "style": {
+        "navigationBarTitleText": "插件"
+      }
+    },
+    {
+      "path": "pages/desktop/desktop",
+      "style": {
+        "navigationBarTitleText": "桌面端"
+      }
+    },
+    {
+      "path": "pages/collect/collect",
+      "style": {
+        "navigationBarTitleText": "我的收藏"
+      }
+    },
+    {
+      "path": "pages/detail/detail",
+      "style": {
+        "navigationBarTitleText": "图片详情"
+      }
+    },
+    {
+      "path": "pages/agreement/detail",
+      "style": {
+        "navigationBarTitleText": "协议详情"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "云图匣",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "color": "#7D8592",
+    "selectedColor": "#2D6CDF",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/plugin/plugin",
+        "text": "插件",
+        "iconPath": "static/tabbar/plugin.png",
+        "selectedIconPath": "static/tabbar/plugin-active.png"
+      },
+      {
+        "pagePath": "pages/desktop/desktop",
+        "text": "桌面端",
+        "iconPath": "static/tabbar/desktop.png",
+        "selectedIconPath": "static/tabbar/desktop-active.png"
+      }
+    ]
+  },
+  "uniIdRouter": {}
 }

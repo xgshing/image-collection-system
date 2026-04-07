@@ -18,6 +18,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
                         "/api/auth/miniapp/login",
+                        "/api/auth/miniapp/avatar",
                         "/api/plugin/login/session",
                         "/api/plugin/login/session/*",
                         "/api/plugin/login/session/*/minicode"

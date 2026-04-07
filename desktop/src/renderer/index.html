@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>云图匣桌面端</title>
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img class="brand-logo" src="../../assets/icon.png" alt="云图匣 Logo" />
+          <div>
+            <div class="brand-title">云图匣</div>
+            <div class="brand-subtitle">桌面管理台</div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-link active" data-panel="overview">总览</button>
+          <button class="nav-link" data-panel="import">导入</button>
+          <button class="nav-link" data-panel="export">导出</button>
+        </nav>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow">批量图片导入 / 导出</div>
+            <h1 class="page-title">把收藏图片整理到本地，也可以批量回传到云端</h1>
+          </div>
+          <div class="topbar-user">
+            <div id="topAccountBlock" class="top-account-block">
+              <div class="avatar-placeholder avatar-default" aria-hidden="true"></div>
+              <div>
+                <div class="account-name">未登录</div>
+                <div class="account-meta">请使用微信扫码登录</div>
+              </div>
+            </div>
+            <button id="logoutButton" class="danger-button">退出登录</button>
+          </div>
+        </header>
+
+        <section id="panel-overview" class="panel active">
+          <div class="hero-grid">
+            <article class="hero-card hero-card-strong">
+              <div class="hero-label">扫码登录</div>
+              <h2>使用现有小程序账号完成桌面端授权</h2>
+              <p>点击下方登录卡片即可创建二维码，使用微信扫码后，在小程序中确认登录。</p>
+              <div class="qr-layout">
+                <button id="createLoginCard" class="qr-card qr-trigger" type="button">
+                  <img id="loginQrImage" alt="登录二维码" hidden />
+                </button>
+                <div class="qr-side">
+                  <div id="loginStatus" class="login-status">准备创建登录会话。</div>
+                </div>
+              </div>
+            </article>
+
+            <article class="hero-card">
+              <div class="hero-label">当前概览</div>
+              <div class="metric-list">
+                <div class="metric-item">
+                  <span class="metric-value" id="metricTags">0</span>
+                  <span class="metric-label">可用标签</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-value" id="metricImportFolders">0</span>
+                  <span class="metric-label">待导入文件夹</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-value" id="metricExportTags">0</span>
+                  <span class="metric-label">已选导出标签</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="content-grid content-grid-single">
+            <article class="content-card">
+              <div class="section-heading">
+                <div>
+                  <div class="section-eyebrow">使用说明</div>
+                  <h3>开始前请先完成登录授权</h3>
+                </div>
+              </div>
+              <div class="guide-list">
+                <div class="guide-item">
+                  <div class="guide-index">01</div>
+                  <div>
+                    <div class="guide-title">导入图片</div>
+                    <div class="guide-copy">前往“导入”页面，选择一个或多个本地文件夹，系统会默认使用文件夹名作为标签名。</div>
+                  </div>
+                </div>
+                <div class="guide-item">
+                  <div class="guide-index">02</div>
+                  <div>
+                    <div class="guide-title">导出图片</div>
+                    <div class="guide-copy">前往“导出”页面，选择标签和本地目录，系统会按标签自动创建文件夹并写出图片。</div>
+                  </div>
+                </div>
+                <div class="guide-item">
+                  <div class="guide-index">03</div>
+                  <div>
+                    <div class="guide-title">查看结果</div>
+                    <div class="guide-copy">最近的导入、导出结果会显示在下方任务动态中，方便回看成功或失败原因。</div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <article class="content-card">
+            <div class="section-heading">
+              <div>
+                <div class="section-eyebrow">任务动态</div>
+                <h3>最近任务</h3>
+              </div>
+            </div>
+            <div id="taskTimeline" class="task-timeline"></div>
+          </article>
+        </section>
+
+        <section id="panel-import" class="panel">
+          <article class="content-card">
+            <div class="section-heading">
+              <div>
+                <div class="section-eyebrow">导入</div>
+                <h3>将本地文件夹批量上传为标签图片</h3>
+              </div>
+              <button id="chooseImportFoldersButton" class="secondary-button">选择文件夹</button>
+            </div>
+            <p class="section-copy">每个选中的文件夹都会成为一个导入分组。默认使用文件夹名作为标签名，上传前可手动修改。</p>
+            <div id="importEmptyState" class="empty-state">当前还没有选择待导入文件夹。</div>
+            <div id="importFolderList" class="folder-list large"></div>
+            <div id="importProgressCard" class="progress-card hidden">
+              <div class="progress-header">
+                <span id="importProgressTitle">准备导入</span>
+                <span id="importProgressPercent">0%</span>
+              </div>
+              <div class="progress-bar">
+                <div id="importProgressBar" class="progress-fill"></div>
+              </div>
+              <div id="importProgressMeta" class="progress-meta"></div>
+            </div>
+            <div class="card-actions">
+              <button id="startImportButton" class="primary-button" disabled>开始导入</button>
+            </div>
+          </article>
+        </section>
+
+        <section id="panel-export" class="panel">
+          <article class="content-card">
+            <div class="section-heading">
+              <div>
+                <div class="section-eyebrow">导出</div>
+                <h3>将选中标签导出到本地文件夹</h3>
+              </div>
+              <button id="chooseExportDirectoryButton" class="secondary-button">选择导出目录</button>
+            </div>
+            <p class="section-copy">系统会在导出目录下按标签名创建文件夹。若一张图片命中多个已选标签，会复制到每个对应文件夹。</p>
+            <div id="exportDirectoryLabel" class="directory-label">尚未选择导出目录。</div>
+            <div id="tagSelector" class="tag-selector"></div>
+            <div id="exportProgressCard" class="progress-card hidden">
+              <div class="progress-header">
+                <span id="exportProgressTitle">准备导出</span>
+                <span id="exportProgressPercent">0%</span>
+              </div>
+              <div class="progress-bar">
+                <div id="exportProgressBar" class="progress-fill"></div>
+              </div>
+              <div id="exportProgressMeta" class="progress-meta"></div>
+            </div>
+            <div class="card-actions">
+              <button id="startExportButton" class="primary-button" disabled>开始导出</button>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

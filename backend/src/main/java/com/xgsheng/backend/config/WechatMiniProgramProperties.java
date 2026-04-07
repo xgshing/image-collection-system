@@ -7,6 +7,7 @@ public class WechatMiniProgramProperties {
 
     private String appId;
     private String appSecret;
+    private String codeEnvVersion = "release";
 
     public String getAppId() {
         return appId;
@@ -22,6 +23,18 @@ public class WechatMiniProgramProperties {
 
     public void setAppSecret(String appSecret) {
         this.appSecret = appSecret;
+    }
+
+    public String getCodeEnvVersion() {
+        return codeEnvVersion;
+    }
+
+    public void setCodeEnvVersion(String codeEnvVersion) {
+        if (codeEnvVersion == null || codeEnvVersion.isBlank()) {
+            this.codeEnvVersion = "release";
+            return;
+        }
+        this.codeEnvVersion = codeEnvVersion.trim().toLowerCase();
     }
 
     public boolean isConfigured() {

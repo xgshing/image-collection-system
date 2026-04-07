@@ -8,7 +8,12 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info) => {
     if (info.menuItemId === "saveImage") {
-        chrome.storage.local.set({ imageUrl: info.srcUrl });
-        chrome.action.openPopup();
+        chrome.storage.local.set({
+            imageUrl: info.srcUrl,
+            pageUrl: info.pageUrl || ""
+        });
+        chrome.action.openPopup().catch((error) => {
+            console.warn("openPopup failed", error);
+        });
     }
 });

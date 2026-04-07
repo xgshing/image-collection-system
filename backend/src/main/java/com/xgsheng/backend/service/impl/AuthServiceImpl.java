@@ -122,6 +122,9 @@ public class AuthServiceImpl implements AuthService {
     private void updateUserProfileIfNeeded(User user, String nickName, String avatarUrl) {
         String normalizedNickName = normalizeNickName(nickName);
         String normalizedAvatarUrl = normalizeAvatarUrl(avatarUrl);
+        if (normalizedAvatarUrl.isBlank()) {
+            normalizedAvatarUrl = user.getAvatarUrl() == null ? "" : user.getAvatarUrl();
+        }
 
         boolean changed = !Objects.equals(user.getNickName(), normalizedNickName)
                 || !Objects.equals(user.getAvatarUrl(), normalizedAvatarUrl);
@@ -138,6 +141,9 @@ public class AuthServiceImpl implements AuthService {
 
     private String normalizeAvatarUrl(String avatarUrl) {
         String value = avatarUrl == null ? "" : avatarUrl.trim();
-        return value;
+        if (value.startsWith("http://") || value.startsWith("https://")) {
+            return value;
+        }
+        return "";
     }
 }

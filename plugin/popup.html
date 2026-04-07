@@ -1,51 +1,67 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>图片收藏助手</title>
-    <link rel="stylesheet" href="popup.css">
-</head>
-<body>
-<div class="app-shell">
-    <section id="loginSection" class="panel">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>云图匣</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <section id="loginSection" class="panel">
         <div class="panel-header">
-            <div>
-                <div class="eyebrow">跨端同步</div>
-                <h1>微信扫码登录插件</h1>
-            </div>
-            <button id="refreshLoginBtn" class="icon-button" type="button">刷新</button>
+          <div>
+            <div class="eyebrow">WECHAT LOGIN</div>
+            <h1>扫码登录云图匣</h1>
+          </div>
+          <button id="refreshLoginBtn" class="icon-button" type="button">刷新</button>
         </div>
-
-        <p class="panel-text">请用手机端小程序点击“扫码登录插件”，扫描下方二维码完成确认。</p>
-
+        <p class="panel-text">使用微信扫码并在小程序中确认后，即可继续收藏当前网页图片。</p>
         <div class="qr-card">
-            <img id="qrImage" class="qr-image" alt="插件登录二维码" />
-            <div id="loginStatus" class="login-status">正在生成二维码...</div>
+          <img id="qrImage" class="qr-image" alt="微信扫码登录二维码" />
+          <div id="loginStatus" class="login-status"></div>
         </div>
-    </section>
+      </section>
 
-    <section id="collectSection" class="panel" style="display:none;">
+      <section id="collectSection" class="panel" style="display: none;">
         <div class="panel-header">
-            <div class="user-badge">
-                <img id="avatarPreview" class="user-avatar" alt="用户头像" />
-                <div>
-                    <div class="eyebrow">已登录</div>
-                    <div id="nicknameDisplay" class="user-name">微信用户</div>
-                </div>
+          <div class="user-badge">
+            <img id="avatarPreview" class="user-avatar" alt="用户头像" />
+            <div>
+              <div class="eyebrow">SIGNED IN</div>
+              <div id="nicknameDisplay" class="user-name"></div>
             </div>
-            <button id="logoutBtn" class="icon-button" type="button">退出</button>
+          </div>
+          <button id="logoutBtn" class="icon-button" type="button">退出</button>
         </div>
 
         <div class="preview-card">
-            <img id="preview" class="preview-image" alt="待收藏图片预览" />
+          <img id="preview" class="preview-image" alt="待收藏图片预览" style="display: none;" />
+          <div id="previewPlaceholder" class="preview-placeholder">
+            <div class="preview-placeholder-title">暂无待收藏图片</div>
+            <div id="previewPlaceholderText" class="preview-placeholder-text">在网页图片上点击右键，再选择“收藏图片”。</div>
+          </div>
+          <div id="emptyState" class="empty-state">当前没有来自网页右键的待收藏图片。</div>
         </div>
 
         <label class="field-label" for="tagInput">标签</label>
-        <input id="tagInput" class="text-input" placeholder="输入标签，多个标签用逗号分隔" />
-        <button id="saveBtn" class="primary-button" type="button">收藏图片</button>
-    </section>
-</div>
+        <div class="tag-editor">
+          <div id="selectedTags" class="selected-tags"></div>
+          <input
+            id="tagInput"
+            class="text-input"
+            type="text"
+            placeholder="输入标签后回车，或使用逗号分隔"
+            autocomplete="off"
+          />
+          <div id="tagSuggestions" class="tag-suggestions" style="display: none;"></div>
+        </div>
 
-<script src="popup.js"></script>
-</body>
+        <div id="saveFeedback" class="save-feedback"></div>
+        <button id="saveBtn" class="primary-button" type="button">收藏图片</button>
+      </section>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
 </html>
