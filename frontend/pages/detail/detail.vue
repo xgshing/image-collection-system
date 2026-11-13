@@ -269,7 +269,7 @@ onLoad((options) => {
 </script>
 
 <style>
-.page { min-height: 100vh; background: #f7f8fa; }
+.page { min-height: 100vh; background: #F8F7FC; }
 .container { padding: 24rpx; }
 .image-wrapper, .info-card, .tag-card, .manage-box, .danger-box { border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); }
 .image-wrapper { padding: 20rpx; background: #000; overflow: hidden; }
@@ -285,12 +285,12 @@ onLoad((options) => {
 .info-label { font-size: 22rpx; color: #86909c; }
 .info-value { margin-top: 8rpx; font-size: 26rpx; line-height: 1.7; color: #1f2329; }
 .tag-list { display: flex; flex-wrap: wrap; margin-top: 16rpx; }
-.tag { margin: 0 16rpx 16rpx 0; padding: 10rpx 18rpx; border-radius: 999rpx; background: #eef4ff; color: #2d6cdf; font-size: 26rpx; }
+.tag { margin: 0 16rpx 16rpx 0; padding: 10rpx 18rpx; border-radius: 999rpx; background: #F3F0FF; color: #7965D8; font-size: 26rpx; }
 .empty-tags { margin-top: 16rpx; color: #666; font-size: 26rpx; }
 .tag-input-row { display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; }
-.tag-input { flex: 1; min-height: 76rpx; padding: 0 20rpx; border-radius: 18rpx; background: #f7f8fa; }
+.tag-input { flex: 1; min-height: 76rpx; padding: 0 20rpx; border-radius: 18rpx; background: #F8F7FC; }
 .subheading { margin-top: 24rpx; font-size: 26rpx; font-weight: 600; color: #1f2329; }
-.tag-dropdown { margin-top: 12rpx; border-radius: 12rpx; background: #f7f8fa; overflow: hidden; }
+.tag-dropdown { margin-top: 12rpx; border-radius: 12rpx; background: #F8F7FC; overflow: hidden; }
 .tag-option { padding: 16rpx 20rpx; border-bottom: 1rpx solid #e6e8eb; font-size: 26rpx; color: #333; }
 .tag-option:last-child { border-bottom: none; }
 .header-delete-btn { background: #d93025; color: #fff; }

@@ -40,12 +40,12 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "云图匣",
-    "navigationBarBackgroundColor": "#F8F8F8",
-    "backgroundColor": "#F8F8F8"
+    "navigationBarBackgroundColor": "#F8F7FC",
+    "backgroundColor": "#F8F7FC"
   },
   "tabBar": {
     "color": "#7D8592",
-    "selectedColor": "#2D6CDF",
+    "selectedColor": "#7965D8",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "black",
     "list": [

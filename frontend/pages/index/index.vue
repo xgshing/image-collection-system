@@ -25,33 +25,58 @@
       </view>
 
       <view class="hero-actions">
-        <button class="collect-button" @click="goCollect">立即收藏</button>
+        <button class="hero-collect-button" @click="goCollect">
+          <view class="hero-plus">
+            <view class="hero-plus-bar hero-plus-h"></view>
+            <view class="hero-plus-bar hero-plus-v"></view>
+          </view>
+          <text>立即收藏</text>
+        </button>
       </view>
     </view>
 
     <view class="stats-card">
-      <view class="section-title">收藏概览</view>
-      <view class="section-tip">这里会展示你最近的收藏情况。</view>
-      <view class="stats">
-        <view class="stat-item">
+      <view class="stats-head">
+        <view>
+          <view class="block-title">收藏概览</view>
+          <view class="block-tip">这里会展示你最近的收藏情况。</view>
+        </view>
+        <view class="recent-pill">
+          <text>最近新增</text>
+          <text v-if="showRecentDate" class="recent-date">{{ stats.lastUpload }}</text>
+        </view>
+      </view>
+      <view class="stats-grid">
+        <view class="stat-tile">
           <view class="stat-value">{{ stats.total }}</view>
-          <view class="stat-label">图片数</view>
+          <view class="stat-label">
+            <view class="mini-image-icon">
+              <view class="mini-image-dot"></view>
+              <view class="mini-image-hill"></view>
+            </view>
+            <text>图片数</text>
+          </view>
         </view>
-        <view class="stat-item stat-item-link" @click="goTagManager">
-          <view class="stat-value">{{ stats.tags }}</view>
-          <view class="stat-label">标签数</view>
-        </view>
-        <view class="stat-item">
-          <view class="stat-value">{{ stats.lastUpload }}</view>
-          <view class="stat-label">最近新增</view>
+        <view class="stat-tile stat-tile-link" @click="goTagManager">
+          <view class="stat-value stat-value-brand">{{ stats.tags }}</view>
+          <view class="stat-label stat-label-brand">
+            <view class="mini-tag-icon"></view>
+            <text>标签数</text>
+          </view>
         </view>
       </view>
     </view>
 
     <view v-if="isLoggedIn" class="quick-card">
-      <view class="section-title">标签筛选</view>
-      <view class="section-tip">点击标签，可以快速查看对应分类的图片。</view>
-      <input v-model="tagKeyword" class="tag-search" placeholder="搜索标签" />
+      <view class="block-title">标签筛选</view>
+      <view class="block-tip">点击标签，可以快速查看对应分类的图片。</view>
+      <view class="tag-search-wrap">
+        <view class="tag-search-icon">
+          <view class="tag-search-circle"></view>
+          <view class="tag-search-handle"></view>
+        </view>
+        <input v-model="tagKeyword" class="tag-search" placeholder="搜索标签" />
+      </view>
       <view class="filter" :class="{ collapsed: shouldCollapseTags }" :style="filterStyle">
         <view
           v-for="item in filteredTagList"
@@ -62,6 +87,7 @@
         >
           {{ item.label }}
         </view>
+        <text v-if="showEmptyCustomTags" class="tag-empty-hint">暂无自定义标签</text>
       </view>
       <view v-if="showTagToggle" class="filter-toggle" @click="toggleTagExpand">
         <text>{{ tagsExpanded ? '收起标签' : '展开全部' }}</text>
@@ -71,10 +97,19 @@
 
     <view v-if="isLoggedIn" class="quick-card continue-card">
       <view>
-        <view class="section-title">继续整理</view>
-        <view class="section-tip">继续添加图片，或者给已有图片补充标签。</view>
+        <view class="block-title">继续整理</view>
+        <view class="block-tip">继续添加图片，或者给已有图片补充标签。</view>
       </view>
-      <button size="mini" class="continue-button" @click="goCollect">打开收藏页</button>
+      <button class="continue-button" @click="goCollect">
+        <text>打开收藏页</text>
+        <view class="continue-arrow"></view>
+      </button>
+    </view>
+
+    <view v-if="!isLoggedIn" class="status-box empty-state">
+      <view class="empty-title">还没有收藏图片</view>
+      <view class="empty-desc">开始收藏后，图片会自动出现在这里。</view>
+      <button class="collect-button" @click="goCollect">开始收藏</button>
     </view>
 
     <view v-if="isLoggedIn && pageState === 'error'" class="status-box">
@@ -120,10 +155,10 @@
       </view>
     </view>
 
-    <view v-if="hasConsented && !profileCompleted" class="login-mask">
+    <view v-if="showLoginForm" class="login-mask">
       <view class="login-card">
-        <view class="login-title">完善个人资料</view>
-        <view class="login-text">在使用同步功能前，请先设置头像和昵称。</view>
+        <view class="login-title">登录后继续收藏</view>
+        <view class="login-text">收藏图片前，请先设置头像和昵称。不登录也可以继续浏览。</view>
         <button class="avatar-picker" open-type="chooseAvatar" @chooseavatar="handleChooseAvatar">
           <image class="avatar-preview" :src="displayAvatar" mode="aspectFill" />
           <text class="avatar-picker-text">选择头像</text>
@@ -136,21 +171,22 @@
           @input="handleNicknameInput"
         />
         <button class="primary-button" :loading="authLoading" @click="handleProfileConfirm">保存并继续</button>
+        <button class="ghost-button login-later" @click="dismissAuthPrompt">先看看</button>
       </view>
     </view>
 
     <view v-if="showPrivacyModal" class="modal-mask">
       <view class="modal-card">
-        <view class="modal-title">使用前请确认</view>
-        <view class="modal-desc">请先阅读并同意以下协议内容。</view>
+        <view class="modal-title">收藏前请确认</view>
+        <view class="modal-desc">请先阅读并同意以下协议，再继续收藏。不登录也可以先浏览。</view>
 
         <label class="check-line" @click="toggleAgreement('user')">
-          <checkbox :checked="userAgreementChecked" color="#2d6cdf" />
+          <checkbox :checked="userAgreementChecked" color="#7965D8" />
           <view class="check-text">同意 <text class="link-text" @click.stop="openAgreement('user')">《用户协议》</text></view>
         </label>
 
         <label class="check-line" @click="toggleAgreement('privacy')">
-          <checkbox :checked="privacyPolicyChecked" color="#2d6cdf" />
+          <checkbox :checked="privacyPolicyChecked" color="#7965D8" />
           <view class="check-text">同意 <text class="link-text" @click.stop="openAgreement('privacy')">《隐私政策》</text></view>
         </label>
 
@@ -192,6 +228,8 @@ const failedImageIds = ref([])
 const currentTag = ref('')
 const pageState = ref('loading')
 const hasConsented = ref(false)
+const authPromptVisible = ref(false)
+const pendingAction = ref('')
 const authLoading = ref(false)
 const userAgreementChecked = ref(false)
 const privacyPolicyChecked = ref(false)
@@ -214,7 +252,9 @@ const stats = ref({ total: 0, tags: 0, lastUpload: '' })
 
 const isLoggedIn = computed(() => Boolean(userProfile.value?.nickName && userProfile.value?.avatarUrl))
 const profileCompleted = computed(() => Boolean(userProfile.value?.nickName && isHttpUrl(userProfile.value?.avatarUrl) && userProfile.value.nickName !== defaultNickname))
-const showPrivacyModal = computed(() => !hasConsented.value)
+const authRequired = computed(() => !(profileCompleted.value && getSessionToken()))
+const showPrivacyModal = computed(() => authPromptVisible.value && !hasConsented.value)
+const showLoginForm = computed(() => authPromptVisible.value && hasConsented.value && authRequired.value)
 const displayAvatar = computed(() => pendingAvatarUrl.value || (isHttpUrl(userProfile.value?.avatarUrl) ? userProfile.value.avatarUrl : defaultAvatar))
 const displayNickname = computed(() => pendingNickname.value || userProfile.value?.nickName || '未登录')
 const filteredTagList = computed(() => {
@@ -224,6 +264,8 @@ const filteredTagList = computed(() => {
 })
 const shouldCollapseTags = computed(() => !tagKeyword.value.trim() && !tagsExpanded.value && tagOverflow.value)
 const showTagToggle = computed(() => !tagKeyword.value.trim() && tagOverflow.value)
+const showRecentDate = computed(() => isLoggedIn.value && stats.value.total > 0 && stats.value.lastUpload && stats.value.lastUpload !== '--')
+const showEmptyCustomTags = computed(() => tagList.value.length <= 1)
 const filterStyle = computed(() => (!shouldCollapseTags.value || !collapsedTagHeight.value ? {} : { maxHeight: `${collapsedTagHeight.value}px` }))
 
 const formatRecentTime = (value) => {
@@ -321,8 +363,42 @@ const handleImageError = (item) => {
   if (!failedImageIds.value.includes(item.id)) failedImageIds.value.push(item.id)
 }
 
-const goCollect = () => uni.navigateTo({ url: '/pages/collect/collect' })
-const goTagManager = () => uni.navigateTo({ url: '/pages/collect/collect?manageTags=1' })
+const openAuthPrompt = (action) => {
+  pendingAction.value = action
+  authPromptVisible.value = true
+}
+
+const dismissAuthPrompt = () => {
+  authPromptVisible.value = false
+  pendingAction.value = ''
+}
+
+const continuePendingAction = () => {
+  const action = pendingAction.value
+  pendingAction.value = ''
+  authPromptVisible.value = false
+  if (action === 'collect') {
+    uni.navigateTo({ url: '/pages/collect/collect' })
+    return
+  }
+  if (action === 'tags') uni.navigateTo({ url: '/pages/collect/collect?manageTags=1' })
+}
+
+const goCollect = () => {
+  if (!authRequired.value) {
+    uni.navigateTo({ url: '/pages/collect/collect' })
+    return
+  }
+  openAuthPrompt('collect')
+}
+
+const goTagManager = () => {
+  if (!authRequired.value) {
+    uni.navigateTo({ url: '/pages/collect/collect?manageTags=1' })
+    return
+  }
+  openAuthPrompt('tags')
+}
 const goDetail = (item) => uni.navigateTo({ url: `/pages/detail/detail?id=${item.id}` })
 const openAgreement = (type) => uni.navigateTo({ url: `/pages/agreement/detail?type=${type}` })
 
@@ -335,7 +411,7 @@ const toggleAgreement = (type) => {
 }
 
 const handleReject = () => {
-  uni.showModal({ title: '暂不继续', content: '如不同意相关协议，将无法继续使用收藏功能。', showCancel: false })
+  dismissAuthPrompt()
 }
 
 const requestLoginCode = () => new Promise((resolve, reject) => {
@@ -425,6 +501,7 @@ const runLoginFlow = async () => {
     uni.showToast({ title: '登录成功', icon: 'success' })
     await loadPageData()
     await tryConfirmPendingPluginLogin()
+    continuePendingAction()
   } catch (error) {
     console.error('runLoginFlow failed', error)
     clearSessionToken()
@@ -506,6 +583,8 @@ onLoad((options) => {
   pendingAvatarUrl.value = isHttpUrl(userProfile.value?.avatarUrl) ? userProfile.value.avatarUrl : ''
   pendingNickname.value = userProfile.value?.nickName && userProfile.value.nickName !== defaultNickname ? userProfile.value.nickName : ''
   if (hasConsented.value && profileCompleted.value && getSessionToken()) loadPageData({ silent: true })
+  const openedForLogin = Boolean(options?.scene || options?.token)
+  if (openedForLogin && authRequired.value) openAuthPrompt('plugin')
   tryConfirmPendingPluginLogin()
 })
 
@@ -533,40 +612,64 @@ watch(tagKeyword, () => {
 </script>
 
 <style>
-.page { min-height: 100vh; background: #f7f8fa; padding-bottom: 32rpx; }
-.topbar { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 24rpx 12rpx; }
-.topbar-title { font-size: 40rpx; font-weight: 700; color: #1f2329; }
-.topbar-subtitle { margin-top: 10rpx; font-size: 24rpx; color: #6b7280; }
-.hero-card, .stats-card, .quick-card, .card, .login-card, .modal-card { border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); }
-.hero-card { margin: 24rpx; padding: 28rpx; background: linear-gradient(135deg, #ffffff 0%, #eef4ff 100%); }
-.hero-copy { margin-bottom: 28rpx; }
-.hero-eyebrow { font-size: 22rpx; font-weight: 600; letter-spacing: 2rpx; color: #2d6cdf; }
-.hero-title { margin-top: 12rpx; font-size: 44rpx; line-height: 1.25; font-weight: 700; color: #1f2329; }
-.hero-text { margin-top: 16rpx; font-size: 26rpx; line-height: 1.7; color: #4e5969; }
-.hero-user { display: flex; align-items: center; }
-.avatar { width: 108rpx; height: 108rpx; border-radius: 50%; background: #dfe9ff; }
-.user-meta { margin-left: 20rpx; }
-.user-name { font-size: 34rpx; font-weight: 700; color: #1f2329; }
-.user-tip { margin-top: 10rpx; font-size: 24rpx; line-height: 1.7; color: #4e5969; }
-.hero-actions { margin-top: 24rpx; }
-.stats-card, .quick-card { margin: 0 24rpx 24rpx; padding: 24rpx; background: #fff; }
+.page { min-height: 100vh; background: #F8F7FC; padding-bottom: 32rpx; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 40rpx 32rpx 8rpx; }
+.topbar-title { font-size: 48rpx; font-weight: 700; color: #0f172a; letter-spacing: -0.5rpx; }
+.topbar-subtitle { margin-top: 8rpx; font-size: 26rpx; color: #64748b; }
+.card, .login-card, .modal-card { border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); }
+.hero-card, .stats-card, .quick-card { border-radius: 48rpx; border: 1rpx solid rgba(15, 23, 42, 0.08); box-shadow: 0 8rpx 40rpx rgba(15, 23, 42, 0.04); }
+.hero-card { margin: 32rpx; padding: 40rpx; background: linear-gradient(180deg, #F3F0FF 0%, #ffffff 58%, #ffffff 100%); }
+.hero-copy { margin-bottom: 8rpx; }
+.hero-eyebrow { font-size: 22rpx; font-weight: 400; letter-spacing: 2rpx; color: #7965D8; }
+.hero-title { margin-top: 12rpx; font-size: 38rpx; line-height: 1.35; font-weight: 700; color: #0f172a; }
+.hero-text { margin-top: 12rpx; font-size: 26rpx; line-height: 1.7; color: #64748b; }
+.hero-user { display: flex; align-items: center; margin-top: 32rpx; padding: 24rpx 24rpx 24rpx 0; border-radius: 32rpx; background: rgba(248, 247, 252, 0.8); border: 1rpx solid #EAE7F2; }
+.avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #EEE9FF; border: 4rpx solid #ffffff; box-shadow: 0 4rpx 12rpx rgba(15, 23, 42, 0.06); }
+.user-meta { flex: 1; min-width: 0; margin-left: 28rpx; }
+.user-name { font-size: 28rpx; font-weight: 600; color: #0f172a; }
+.user-tip { margin-top: 6rpx; font-size: 20rpx; line-height: 1.5; color: #64748b; white-space: nowrap; }
+.hero-actions { margin-top: 32rpx; }
+.hero-collect-button { display: flex; align-items: center; justify-content: center; gap: 12rpx; height: 96rpx; margin: 0; padding: 0; overflow: hidden; border-radius: 999rpx; background: linear-gradient(90deg, #7965D8 0%, #A18BEF 100%); color: #ffffff; font-size: 30rpx; box-shadow: 0 20rpx 40rpx rgba(121, 101, 216, 0.28); }
+.hero-collect-button::after { border: none; }
+.hero-plus { position: relative; width: 28rpx; height: 28rpx; }
+.hero-plus-bar { position: absolute; left: 50%; top: 50%; background: #ffffff; border-radius: 999rpx; }
+.hero-plus-h { width: 28rpx; height: 4rpx; margin-left: -14rpx; margin-top: -2rpx; }
+.hero-plus-v { width: 4rpx; height: 28rpx; margin-left: -2rpx; margin-top: -14rpx; }
+.stats-card, .quick-card { margin: 0 32rpx 32rpx; padding: 40rpx; background: #ffffff; }
+.stats-head, .continue-card { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }
+.block-title { font-size: 32rpx; font-weight: 700; color: #0f172a; }
+.block-tip { margin-top: 6rpx; font-size: 24rpx; line-height: 1.5; color: #94a3b8; }
+.recent-pill { display: flex; align-items: center; gap: 8rpx; flex-shrink: 0; padding: 8rpx 20rpx; border-radius: 999rpx; background: #F8F7FC; border: 1rpx solid #EAE7F2; color: #94a3b8; font-size: 22rpx; }
+.recent-date { color: #475569; }
+.stats-grid { display: flex; gap: 24rpx; margin-top: 32rpx; }
+.stat-tile { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32rpx 12rpx; border-radius: 32rpx; background: rgba(248, 247, 252, 0.7); border: 1rpx solid rgba(234, 231, 242, 0.8); }
+.stat-tile-link { background: rgba(243, 240, 255, 0.7); border-color: rgba(212, 204, 245, 0.8); }
+.stat-value { font-size: 60rpx; font-weight: 800; color: #0f172a; line-height: 1.1; }
+.stat-value-brand { color: #7965D8; }
+.stat-label, .stat-label-brand { display: flex; align-items: center; gap: 8rpx; margin-top: 8rpx; font-size: 24rpx; color: #64748b; }
+.stat-label-brand { color: rgba(29, 78, 216, 0.8); }
+.mini-image-icon { position: relative; width: 28rpx; height: 22rpx; border: 2rpx solid #94a3b8; border-radius: 4rpx; }
+.mini-image-dot { position: absolute; top: 3rpx; right: 3rpx; width: 5rpx; height: 5rpx; border-radius: 50%; background: #94a3b8; }
+.mini-image-hill { position: absolute; left: 3rpx; bottom: 2rpx; width: 14rpx; height: 7rpx; border-top: 2rpx solid #94a3b8; border-radius: 8rpx 8rpx 0 0; }
+.mini-tag-icon { width: 22rpx; height: 16rpx; border: 2rpx solid #A18BEF; border-radius: 3rpx 8rpx 8rpx 3rpx; }
 .section-title { font-size: 30rpx; font-weight: 700; color: #1f2329; }
 .section-tip { margin-top: 8rpx; font-size: 24rpx; line-height: 1.7; color: #6b7280; }
-.stats { display: flex; justify-content: space-around; margin-top: 20rpx; }
-.stat-item { text-align: center; }
-.stat-item-link { padding: 8rpx 16rpx; border-radius: 20rpx; background: #eef4ff; }
-.stat-value { font-size: 34rpx; font-weight: 700; color: #1f2329; }
-.stat-label { margin-top: 8rpx; font-size: 22rpx; color: #86909c; }
-.filter { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 20rpx; overflow: hidden; }
+.tag-search-wrap { position: relative; margin-top: 28rpx; }
+.tag-search-icon { position: absolute; left: 24rpx; top: 50%; width: 28rpx; height: 28rpx; margin-top: -14rpx; z-index: 1; }
+.tag-search-circle { position: absolute; left: 0; top: 2rpx; width: 16rpx; height: 16rpx; border: 3rpx solid #94a3b8; border-radius: 50%; }
+.tag-search-handle { position: absolute; left: 16rpx; top: 16rpx; width: 10rpx; height: 3rpx; background: #94a3b8; border-radius: 999rpx; transform: rotate(45deg); }
+.tag-search { min-height: 80rpx; padding: 0 24rpx 0 64rpx; border-radius: 24rpx; border: 1rpx solid rgba(234, 231, 242, 0.9); background: #F8F7FC; font-size: 24rpx; color: #1e293b; }
+.filter { display: flex; flex-wrap: wrap; align-items: center; gap: 16rpx; margin-top: 24rpx; overflow: hidden; }
 .filter.collapsed { overflow: hidden; }
-.tag-search { margin-top: 18rpx; min-height: 76rpx; padding: 0 20rpx; border-radius: 18rpx; background: #f7f8fa; font-size: 26rpx; color: #1f2329; }
-.filter-item { padding: 10rpx 24rpx; border-radius: 999rpx; background: #f2f3f5; font-size: 28rpx; color: #4e5969; }
-.filter-item.active { background: #dfe9ff; color: #2d6cdf; }
-.filter-toggle { display: flex; align-items: center; justify-content: center; gap: 8rpx; margin-top: 16rpx; font-size: 24rpx; color: #2d6cdf; }
+.filter-item { padding: 12rpx 28rpx; border-radius: 999rpx; border: 1rpx solid #EAE7F2; background: #ffffff; font-size: 24rpx; font-weight: 600; color: #475569; }
+.filter-item.active { background: #F3F0FF; color: #7965D8; border-color: #D4CCF5; }
+.tag-empty-hint { font-size: 22rpx; font-style: italic; color: #94a3b8; }
+.filter-toggle { display: flex; align-items: center; justify-content: center; gap: 8rpx; margin-top: 16rpx; font-size: 24rpx; color: #7965D8; }
 .filter-toggle-arrow { font-size: 24rpx; line-height: 1; transform: rotate(0deg); transition: transform 0.2s ease; }
 .filter-toggle-arrow.expanded { transform: rotate(180deg); }
-.continue-card { display: flex; align-items: center; justify-content: space-between; }
-.continue-button { background: #eef4ff; color: #2d6cdf; }
+.continue-button { display: flex; align-items: center; justify-content: center; gap: 6rpx; flex-shrink: 0; height: 64rpx; margin: 0; padding: 0 28rpx; line-height: 64rpx; border-radius: 999rpx; border: 1rpx solid rgba(212, 204, 245, 0.95); background: rgba(243, 240, 255, 0.9); color: #7965D8; font-size: 24rpx; font-weight: 600; }
+.continue-button::after { border: none; }
+.continue-arrow { width: 12rpx; height: 12rpx; border-top: 3rpx solid #7965D8; border-right: 3rpx solid #7965D8; transform: rotate(45deg); }
 .status-box { margin: 24rpx; padding: 80rpx 24rpx; text-align: center; color: #666; border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); background: #fff; }
 .status-title { font-size: 34rpx; font-weight: 700; color: #1f2329; }
 .status-text { margin-top: 12rpx; font-size: 26rpx; }
@@ -578,25 +681,28 @@ watch(tagKeyword, () => {
 .column { flex: 1; margin: 0 10rpx; }
 .card { margin-bottom: 20rpx; overflow: hidden; background: #fff; }
 .card-meta { padding: 16rpx 18rpx 20rpx; }
-.card-tags { font-size: 22rpx; color: #2d6cdf; }
+.card-tags { font-size: 22rpx; color: #7965D8; }
 .card-time { margin-top: 8rpx; font-size: 22rpx; color: #86909c; }
 .image-error { margin-top: 12rpx; color: #d93025; font-size: 24rpx; text-align: center; }
 image { width: 100%; border-radius: 12rpx; transition: opacity 0.3s ease; }
 .modal-mask, .login-mask { position: fixed; inset: 0; z-index: 99; display: flex; align-items: center; justify-content: center; padding: 32rpx; background: rgba(15, 23, 42, 0.45); box-sizing: border-box; }
 .login-card, .modal-card { width: 100%; padding: 36rpx 28rpx; background: #fff; box-sizing: border-box; }
 button { border-radius: 999rpx; }
+.hero-collect-button { border-radius: 999rpx; }
 .modal-title, .login-title { font-size: 36rpx; font-weight: 700; color: #1f2329; }
 .modal-desc, .login-text { margin-top: 16rpx; font-size: 28rpx; line-height: 1.7; color: #4e5969; }
-.collect-button { margin-top: 24rpx; background: #2d6cdf; color: #fff; }
-.avatar-picker { margin-top: 28rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; background: #f7f8fa; color: #1f2329; border-radius: 24rpx; }
-.avatar-preview { width: 96rpx; height: 96rpx; border-radius: 50%; background: #dfe9ff; }
+.collect-button { margin-top: 24rpx; background: #7965D8; color: #fff; }
+.avatar-picker { margin-top: 28rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; background: #F8F7FC; color: #1f2329; border-radius: 24rpx; }
+.avatar-preview { width: 96rpx; height: 96rpx; border-radius: 50%; background: #EEE9FF; }
 .avatar-picker-text { font-size: 28rpx; }
-.nickname-input { margin-top: 20rpx; padding: 22rpx 24rpx; border-radius: 20rpx; background: #f7f8fa; font-size: 28rpx; color: #1f2329; }
+.nickname-input { margin-top: 20rpx; padding: 22rpx 24rpx; border-radius: 20rpx; background: #F8F7FC; font-size: 28rpx; color: #1f2329; }
 .check-line { display: flex; align-items: center; margin-top: 24rpx; }
 .check-text { margin-left: 12rpx; font-size: 28rpx; color: #1f2329; }
-.link-text { color: #2d6cdf; }
+.link-text { color: #7965D8; }
 .modal-actions { display: flex; gap: 20rpx; margin-top: 36rpx; }
 .ghost-button, .primary-button { flex: 1; border-radius: 999rpx; }
+.login-later { width: 100%; margin-top: 20rpx; }
 .ghost-button { background: #f2f3f5; color: #1f2329; }
-.primary-button { background: #2d6cdf; color: #fff; }
+.primary-button { background: #7965D8; color: #fff; }
+.hero-collect-button:active, .collect-button:active, .primary-button:active { background: #6554C0; }
 </style>
