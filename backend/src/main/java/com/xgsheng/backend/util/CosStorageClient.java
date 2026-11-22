@@ -4,6 +4,9 @@ import com.qcloud.cos.COSClient;
 import com.qcloud.cos.ClientConfig;
 import com.qcloud.cos.auth.BasicCOSCredentials;
 import com.qcloud.cos.auth.COSCredentials;
+import com.qcloud.cos.http.HttpMethodName;
+import com.qcloud.cos.http.HttpProtocol;
+import com.qcloud.cos.model.GeneratePresignedUrlRequest;
 import com.qcloud.cos.model.ObjectMetadata;
 import com.qcloud.cos.model.PutObjectRequest;
 import com.qcloud.cos.region.Region;
@@ -11,10 +14,15 @@ import com.xgsheng.backend.config.StorageProperties;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
+import java.util.Date;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class CosStorageClient {
+
+    private final Map<String, COSClient> presignClients = new ConcurrentHashMap<>();
 
     public void upload(StorageProperties.Cos cos, String key, byte[] bytes, String contentType) {
         COSClient client = buildClient(cos);
@@ -48,9 +56,22 @@ public class CosStorageClient {
         }
     }
 
+    public String presignGet(StorageProperties.Cos cos, String key, Date expiration) {
+        COSClient client = presignClient(cos);
+        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(cos.getBucket(), key, HttpMethodName.GET);
+        request.setExpiration(expiration);
+        return client.generatePresignedUrl(request).toString();
+    }
+
+    private COSClient presignClient(StorageProperties.Cos cos) {
+        String cacheKey = cos.getRegion() + "|" + cos.getBucket() + "|" + cos.getSecretId();
+        return presignClients.computeIfAbsent(cacheKey, ignored -> buildClient(cos));
+    }
+
     private COSClient buildClient(StorageProperties.Cos cos) {
         COSCredentials credentials = new BasicCOSCredentials(cos.getSecretId(), cos.getSecretKey());
         ClientConfig config = new ClientConfig(new Region(cos.getRegion()));
+        config.setHttpProtocol(HttpProtocol.https);
         return new COSClient(credentials, config);
     }
 
@@ -92,14 +113,43 @@ public class CosStorageClient {
     }
 
     public String extractKeyFromUrl(StorageProperties.Cos cos, String url) {
-        if (url == null || url.isBlank()) {
+        if (url == null || url.isBlank() || cos == null) {
             return "";
         }
-        String normalizedPrefix = trimTrailingSlash(cos.getPublicUrlPrefix()) + "/";
-        String normalizedUrl = url.trim();
-        if (normalizedUrl.toLowerCase(Locale.ROOT).startsWith(normalizedPrefix.toLowerCase(Locale.ROOT))) {
-            return normalizedUrl.substring(normalizedPrefix.length());
+        String normalizedUrl = stripQueryAndFragment(url.trim());
+        String fromPrefix = keyAfterPrefix(cos.getPublicUrlPrefix(), normalizedUrl);
+        if (!fromPrefix.isBlank()) {
+            return fromPrefix;
+        }
+        if (notBlank(cos.getBucket()) && notBlank(cos.getRegion())) {
+            String defaultPrefix = "https://" + cos.getBucket().trim() + ".cos." + cos.getRegion().trim() + ".myqcloud.com";
+            return keyAfterPrefix(defaultPrefix, normalizedUrl);
         }
         return "";
+    }
+
+    private String keyAfterPrefix(String prefix, String url) {
+        String normalizedPrefix = trimTrailingSlash(prefix);
+        if (normalizedPrefix.isBlank()) {
+            return "";
+        }
+        String withSlash = normalizedPrefix + "/";
+        if (url.toLowerCase(Locale.ROOT).startsWith(withSlash.toLowerCase(Locale.ROOT))) {
+            return url.substring(withSlash.length());
+        }
+        return "";
+    }
+
+    private String stripQueryAndFragment(String value) {
+        int query = value.indexOf('?');
+        int fragment = value.indexOf('#');
+        int cut = -1;
+        if (query >= 0) {
+            cut = query;
+        }
+        if (fragment >= 0 && (cut < 0 || fragment < cut)) {
+            cut = fragment;
+        }
+        return cut >= 0 ? value.substring(0, cut) : value;
     }
 }

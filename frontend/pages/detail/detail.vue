@@ -2,7 +2,7 @@
   <view class="page">
     <view class="container" v-if="imageInfo">
       <view class="image-wrapper" @click="previewImage">
-        <image :src="resolveImageUrl(imageInfo.localUrl)" mode="widthFix" />
+        <image class="detail-image" :src="resolveImageUrl(imageInfo.localUrl)" mode="widthFix" />
       </view>
 
       <view class="info-card">
@@ -15,10 +15,6 @@
           <view class="info-row">
             <text class="info-label">来源</text>
             <text class="info-value">{{ imageInfo.url || '本地上传' }}</text>
-          </view>
-          <view class="info-row">
-            <text class="info-label">图片地址</text>
-            <text class="info-value">{{ imageInfo.localUrl || '暂无' }}</text>
           </view>
         </view>
       </view>
@@ -272,7 +268,7 @@ onLoad((options) => {
 .page { min-height: 100vh; background: #F8F7FC; }
 .container { padding: 24rpx; }
 .image-wrapper, .info-card, .tag-card, .manage-box, .danger-box { border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); }
-.image-wrapper { padding: 20rpx; background: #000; overflow: hidden; }
+.image-wrapper { padding: 20rpx; background: #111827; }
 .info-card, .tag-card, .manage-box { margin-top: 24rpx; padding: 24rpx; background: #fff; }
 .danger-box { margin-top: 24rpx; padding: 24rpx; background: #fff6f5; }
 .section-header { display: flex; align-items: center; justify-content: space-between; }
@@ -294,6 +290,6 @@ onLoad((options) => {
 .tag-option { padding: 16rpx 20rpx; border-bottom: 1rpx solid #e6e8eb; font-size: 26rpx; color: #333; }
 .tag-option:last-child { border-bottom: none; }
 .header-delete-btn { background: #d93025; color: #fff; }
-image { width: 100%; transition: opacity 0.3s ease; }
+.detail-image { display: block; width: 100%; border-radius: 12rpx; }
 button { border-radius: 999rpx; }
 </style>

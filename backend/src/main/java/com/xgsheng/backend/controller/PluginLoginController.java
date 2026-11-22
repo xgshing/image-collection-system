@@ -3,6 +3,7 @@ package com.xgsheng.backend.controller;
 import com.xgsheng.backend.auth.AuthContext;
 import com.xgsheng.backend.entity.User;
 import com.xgsheng.backend.service.AuthService;
+import com.xgsheng.backend.service.StorageService;
 import com.xgsheng.backend.service.WechatMiniProgramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,11 +28,14 @@ public class PluginLoginController {
     private static final ConcurrentHashMap<String, LoginSession> SESSIONS = new ConcurrentHashMap<>();
     private final WechatMiniProgramService wechatMiniProgramService;
     private final AuthService authService;
+    private final StorageService storageService;
 
     public PluginLoginController(WechatMiniProgramService wechatMiniProgramService,
-                                 AuthService authService) {
+                                 AuthService authService,
+                                 StorageService storageService) {
         this.wechatMiniProgramService = wechatMiniProgramService;
         this.authService = authService;
+        this.storageService = storageService;
     }
 
     @PostMapping("/session")
@@ -124,14 +128,14 @@ public class PluginLoginController {
         return buildStatus("confirmed", profile, session.confirmedAt, session.sessionToken);
     }
 
-    private static Map<String, Object> buildStatus(String status,
-                                                   Map<String, Object> profile,
-                                                   String confirmedAt,
-                                                   String sessionToken) {
+    private Map<String, Object> buildStatus(String status,
+                                            Map<String, Object> profile,
+                                            String confirmedAt,
+                                            String sessionToken) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", status);
         if (profile != null) {
-            result.put("profile", profile);
+            result.put("profile", presentProfile(profile));
         }
         if (confirmedAt != null) {
             result.put("confirmedAt", confirmedAt);
@@ -140,6 +144,15 @@ public class PluginLoginController {
             result.put("sessionToken", sessionToken);
         }
         return result;
+    }
+
+    private Map<String, Object> presentProfile(Map<String, Object> profile) {
+        Map<String, Object> copy = new LinkedHashMap<>(profile);
+        Object avatarUrl = copy.get("avatarUrl");
+        if (avatarUrl != null) {
+            copy.put("avatarUrl", storageService.readableUrl(String.valueOf(avatarUrl)));
+        }
+        return copy;
     }
 
     private static String stringValue(Object value) {

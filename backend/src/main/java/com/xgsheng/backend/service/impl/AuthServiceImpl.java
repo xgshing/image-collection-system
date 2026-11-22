@@ -5,6 +5,7 @@ import com.xgsheng.backend.entity.UserSession;
 import com.xgsheng.backend.mapper.UserMapper;
 import com.xgsheng.backend.mapper.UserSessionMapper;
 import com.xgsheng.backend.service.AuthService;
+import com.xgsheng.backend.service.StorageService;
 import com.xgsheng.backend.service.WechatMiniProgramService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Resource
     private WechatMiniProgramService wechatMiniProgramService;
+
+    @Resource
+    private StorageService storageService;
 
     @Override
     public LoginResult loginByMiniappCode(String code, String nickName, String avatarUrl) {
@@ -141,9 +145,9 @@ public class AuthServiceImpl implements AuthService {
 
     private String normalizeAvatarUrl(String avatarUrl) {
         String value = avatarUrl == null ? "" : avatarUrl.trim();
-        if (value.startsWith("http://") || value.startsWith("https://")) {
-            return value;
+        if (!(value.startsWith("http://") || value.startsWith("https://"))) {
+            return "";
         }
-        return "";
+        return storageService.canonicalUrl(value);
     }
 }

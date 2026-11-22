@@ -8,16 +8,24 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Date;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class StorageServiceImpl implements StorageService {
+
+    private static final long READ_URL_TTL_MILLIS = 60L * 60 * 1000;
+    private static final long READ_URL_GRID_MILLIS = 10L * 60 * 1000;
+
+    private final Map<String, SignedReadUrl> readUrlCache = new ConcurrentHashMap<>();
 
     @Resource
     private StorageProperties storageProperties;
@@ -55,6 +63,50 @@ public class StorageServiceImpl implements StorageService {
         } catch (IOException ex) {
             throw new IllegalStateException("store file failed", ex);
         }
+    }
+
+    @Override
+    public String canonicalUrl(String url) {
+        String value = url == null ? "" : url.trim();
+        if (value.isBlank() || !useCosStorage()) {
+            return value;
+        }
+        String key = cosStorageClient.extractKeyFromUrl(storageProperties.getCos(), value);
+        if (key.isBlank()) {
+            return value;
+        }
+        return cosStorageClient.toPublicUrl(storageProperties.getCos(), key);
+    }
+
+    @Override
+    public String readableUrl(String storedUrl) {
+        String value = storedUrl == null ? "" : storedUrl.trim();
+        if (value.isBlank() || !useCosStorage()) {
+            return value;
+        }
+        String key = cosStorageClient.extractKeyFromUrl(storageProperties.getCos(), value);
+        if (key.isBlank()) {
+            return value;
+        }
+        return cachedReadUrl(key);
+    }
+
+    private String cachedReadUrl(String key) {
+        long now = System.currentTimeMillis();
+        SignedReadUrl cached = readUrlCache.get(key);
+        if (cached != null && cached.expireAtMillis - now > READ_URL_GRID_MILLIS) {
+            return cached.url;
+        }
+        Date expiration = stableReadExpiration();
+        String url = cosStorageClient.presignGet(storageProperties.getCos(), key, expiration);
+        readUrlCache.put(key, new SignedReadUrl(url, expiration.getTime()));
+        return url;
+    }
+
+    private Date stableReadExpiration() {
+        long now = System.currentTimeMillis();
+        long expireAt = ((now + READ_URL_TTL_MILLIS) / READ_URL_GRID_MILLIS) * READ_URL_GRID_MILLIS;
+        return new Date(expireAt);
     }
 
     private boolean useCosStorage() {
@@ -136,5 +188,15 @@ public class StorageServiceImpl implements StorageService {
             result = result.substring(0, result.length() - 1);
         }
         return result;
+    }
+
+    private static final class SignedReadUrl {
+        private final String url;
+        private final long expireAtMillis;
+
+        private SignedReadUrl(String url, long expireAtMillis) {
+            this.url = url;
+            this.expireAtMillis = expireAtMillis;
+        }
     }
 }

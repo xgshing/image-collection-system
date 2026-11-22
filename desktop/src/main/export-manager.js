@@ -28,12 +28,13 @@ async function runConcurrent(queue, concurrency, worker) {
   await Promise.all(workers);
 }
 
-async function downloadBuffer(url, sessionToken) {
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${sessionToken}`
-    }
-  });
+async function downloadBuffer(url, sessionToken, baseUrl) {
+  const headers = {};
+  const api = String(baseUrl || "").replace(/\/+$/, "");
+  if (sessionToken && api && String(url || "").startsWith(api)) {
+    headers.Authorization = `Bearer ${sessionToken}`;
+  }
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     throw new Error(`Download failed with status ${response.status}`);
@@ -103,7 +104,7 @@ async function startExportTask(options) {
       sendProgress({ ...progress });
 
       try {
-        const { buffer, contentType } = await downloadBuffer(remoteUrl, sessionToken);
+        const { buffer, contentType } = await downloadBuffer(remoteUrl, sessionToken, baseUrl);
         for (const tagName of matchedTags) {
           const targetDir = path.join(outputDir, sanitizeFolderName(tagName));
           await fs.mkdir(targetDir, { recursive: true });

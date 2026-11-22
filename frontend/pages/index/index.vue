@@ -14,7 +14,7 @@
         <view class="hero-text">看到喜欢的图先收藏，不用存进相册，也不用再翻聊天记录和浏览器历史。</view>
       </view>
 
-      <view class="hero-user">
+      <view class="hero-user" @click="handleUserAreaClick">
         <image class="avatar" :src="displayAvatar" mode="aspectFill" />
         <view class="user-meta">
           <view class="user-name">{{ displayNickname }}</view>
@@ -96,9 +96,9 @@
     </view>
 
     <view v-if="isLoggedIn" class="quick-card continue-card">
-      <view>
+      <view class="continue-copy">
         <view class="block-title">继续整理</view>
-        <view class="block-tip">继续添加图片，或者给已有图片补充标签。</view>
+        <view class="block-tip continue-tip">继续添加图片，或者给已有图片补充标签。</view>
       </view>
       <button class="continue-button" @click="goCollect">
         <text>打开收藏页</text>
@@ -109,7 +109,7 @@
     <view v-if="!isLoggedIn" class="status-box empty-state">
       <view class="empty-title">还没有收藏图片</view>
       <view class="empty-desc">开始收藏后，图片会自动出现在这里。</view>
-      <button class="collect-button" @click="goCollect">开始收藏</button>
+      <button class="collect-button" @click="handleStartCollect">开始收藏</button>
     </view>
 
     <view v-if="isLoggedIn && pageState === 'error'" class="status-box">
@@ -121,7 +121,7 @@
     <view v-else-if="isLoggedIn && pageState === 'empty'" class="status-box empty-state">
       <view class="empty-title">还没有收藏图片</view>
       <view class="empty-desc">开始收藏后，图片会自动出现在这里。</view>
-      <button class="collect-button" @click="goCollect">开始收藏</button>
+      <button class="collect-button" @click="handleStartCollect">开始收藏</button>
     </view>
 
     <view v-else-if="isLoggedIn" class="gallery-section">
@@ -133,7 +133,7 @@
       <view class="container">
         <view class="column">
           <view v-for="item in leftList" :key="item.id" class="card" @click="goDetail(item)">
-            <image :src="resolveImageUrl(item.localUrl)" mode="widthFix" @error="handleImageError(item)" />
+            <image class="gallery-image" :src="resolveImageUrl(item.localUrl)" mode="widthFix" @error="handleImageError(item)" />
             <view class="card-meta">
               <view v-if="item.tags?.length" class="card-tags">{{ item.tags.join(' / ') }}</view>
               <view class="card-time">{{ formatRecentTime(item.createTime) }}</view>
@@ -144,7 +144,7 @@
 
         <view class="column">
           <view v-for="item in rightList" :key="item.id" class="card" @click="goDetail(item)">
-            <image :src="resolveImageUrl(item.localUrl)" mode="widthFix" @error="handleImageError(item)" />
+            <image class="gallery-image" :src="resolveImageUrl(item.localUrl)" mode="widthFix" @error="handleImageError(item)" />
             <view class="card-meta">
               <view v-if="item.tags?.length" class="card-tags">{{ item.tags.join(' / ') }}</view>
               <view class="card-time">{{ formatRecentTime(item.createTime) }}</view>
@@ -153,6 +153,10 @@
           </view>
         </view>
       </view>
+    </view>
+
+    <view v-if="showBackTop" class="back-top" @click="scrollToTop">
+      <view class="back-top-arrow"></view>
     </view>
 
     <view v-if="showLoginForm" class="login-mask">
@@ -201,7 +205,7 @@
 
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { onHide, onLoad, onShow } from '@dcloudio/uni-app'
+import { onHide, onLoad, onPageScroll, onShow } from '@dcloudio/uni-app'
 import baseUrl from '../../utils/base-url'
 import resolveImageUrl from '../../utils/image-url'
 import { request, uploadFile } from '../../utils/request'
@@ -237,6 +241,7 @@ const userProfile = ref(null)
 const pendingAvatarUrl = ref('')
 const pendingNickname = ref('')
 const pendingPluginLoginToken = ref('')
+const showBackTop = ref(false)
 const tagKeyword = ref('')
 const tagsExpanded = ref(false)
 const tagOverflow = ref(false)
@@ -277,15 +282,31 @@ const formatRecentTime = (value) => {
   return `${month}-${day}`
 }
 
-const splitList = (data = []) => {
-  leftList.value = []
-  rightList.value = []
-  failedImageIds.value = []
-  data.forEach((item, index) => {
-    if (index % 2 === 0) leftList.value.push(item)
-    else rightList.value.push(item)
+const currentItems = () => {
+  const items = []
+  const count = Math.max(leftList.value.length, rightList.value.length)
+  for (let index = 0; index < count; index += 1) {
+    if (leftList.value[index]) items.push(leftList.value[index])
+    if (rightList.value[index]) items.push(rightList.value[index])
+  }
+  return items
+}
+
+const splitList = (data = [], { preserveImages = false } = {}) => {
+  const previous = new Map(currentItems().map((item) => [item.id, item.localUrl]))
+  const next = preserveImages
+    ? data.map((item) => ({ ...item, localUrl: previous.get(item.id) || item.localUrl }))
+    : data
+  const left = []
+  const right = []
+  next.forEach((item, index) => {
+    if (index % 2 === 0) left.push(item)
+    else right.push(item)
   })
-  pageState.value = data.length ? 'ready' : 'empty'
+  leftList.value = left
+  rightList.value = right
+  if (!preserveImages) failedImageIds.value = []
+  pageState.value = next.length ? 'ready' : 'empty'
 }
 
 const requestList = async (tagValue = '', { silent = false } = {}) => {
@@ -299,13 +320,15 @@ const requestList = async (tagValue = '', { silent = false } = {}) => {
     const res = await request({ url: `${baseUrl}/api/image/list`, data: tagValue ? { tag: tagValue } : {} })
     if (res.statusCode !== 200) throw new Error(`request failed: ${res.statusCode}`)
     const list = Array.isArray(res.data) ? res.data : []
-    splitList(list)
+    splitList(list, { preserveImages: silent })
     stats.value.total = list.length
     stats.value.lastUpload = formatRecentTime(list[0]?.createTime)
   } catch (error) {
-    splitList([])
-    pageState.value = 'error'
-    if (!silent) uni.showToast({ title: '加载失败', icon: 'none' })
+    if (!silent) {
+      splitList([])
+      pageState.value = 'error'
+      uni.showToast({ title: '加载失败', icon: 'none' })
+    }
   } finally {
     if (!silent) uni.hideLoading()
   }
@@ -363,6 +386,14 @@ const handleImageError = (item) => {
   if (!failedImageIds.value.includes(item.id)) failedImageIds.value.push(item.id)
 }
 
+const scrollToTop = () => {
+  uni.pageScrollTo({ scrollTop: 0, duration: 300 })
+}
+
+onPageScroll((event) => {
+  showBackTop.value = event.scrollTop > 480
+})
+
 const openAuthPrompt = (action) => {
   pendingAction.value = action
   authPromptVisible.value = true
@@ -384,12 +415,21 @@ const continuePendingAction = () => {
   if (action === 'tags') uni.navigateTo({ url: '/pages/collect/collect?manageTags=1' })
 }
 
+const handleUserAreaClick = () => {
+  if (isLoggedIn.value && !authRequired.value) return
+  openAuthPrompt('login')
+}
+
+const handleStartCollect = () => {
+  goCollect()
+}
+
 const goCollect = () => {
-  if (!authRequired.value) {
-    uni.navigateTo({ url: '/pages/collect/collect' })
+  if (!isLoggedIn.value || authRequired.value) {
+    openAuthPrompt('collect')
     return
   }
-  openAuthPrompt('collect')
+  uni.navigateTo({ url: '/pages/collect/collect' })
 }
 
 const goTagManager = () => {
@@ -563,6 +603,23 @@ const tryConfirmPendingPluginLogin = async () => {
   if (!confirmed) uni.showToast({ title: '插件登录确认失败', icon: 'none' })
 }
 
+const refreshStoredProfile = async () => {
+  if (!getSessionToken()) return
+  try {
+    const res = await request({ url: `${baseUrl}/api/auth/me` })
+    if (res.statusCode !== 200 || !isHttpUrl(res.data?.avatarUrl)) return
+    const nextProfile = {
+      userId: res.data.userId || userProfile.value?.userId || null,
+      nickName: res.data.nickName || userProfile.value?.nickName || defaultNickname,
+      avatarUrl: res.data.avatarUrl
+    }
+    userProfile.value = nextProfile
+    setUserProfile(nextProfile)
+  } catch (error) {
+    console.error('refreshStoredProfile failed', error)
+  }
+}
+
 const startAutoRefresh = () => {
   stopAutoRefresh()
   if (!profileCompleted.value || !getSessionToken()) return
@@ -588,9 +645,10 @@ onLoad((options) => {
   tryConfirmPendingPluginLogin()
 })
 
-onShow(() => {
+onShow(async () => {
   userProfile.value = getUserProfile()
   pendingPluginLoginToken.value = getPluginLoginToken() || pendingPluginLoginToken.value
+  if (getSessionToken()) await refreshStoredProfile()
   pendingAvatarUrl.value = isHttpUrl(userProfile.value?.avatarUrl) ? userProfile.value.avatarUrl : pendingAvatarUrl.value
   pendingNickname.value = userProfile.value?.nickName && userProfile.value.nickName !== defaultNickname ? userProfile.value.nickName : pendingNickname.value
   if (!profileCompleted.value || !getSessionToken()) {
@@ -613,36 +671,37 @@ watch(tagKeyword, () => {
 
 <style>
 .page { min-height: 100vh; background: #F8F7FC; padding-bottom: 32rpx; }
-.topbar { display: flex; align-items: center; justify-content: space-between; padding: 40rpx 32rpx 8rpx; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx 0; }
 .topbar-title { font-size: 48rpx; font-weight: 700; color: #0f172a; letter-spacing: -0.5rpx; }
 .topbar-subtitle { margin-top: 8rpx; font-size: 26rpx; color: #64748b; }
 .card, .login-card, .modal-card { border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); }
 .hero-card, .stats-card, .quick-card { border-radius: 48rpx; border: 1rpx solid rgba(15, 23, 42, 0.08); box-shadow: 0 8rpx 40rpx rgba(15, 23, 42, 0.04); }
-.hero-card { margin: 32rpx; padding: 40rpx; background: linear-gradient(180deg, #F3F0FF 0%, #ffffff 58%, #ffffff 100%); }
+.hero-card { margin: 16rpx 32rpx; padding: 40rpx; background: linear-gradient(180deg, #F3F0FF 0%, #ffffff 58%, #ffffff 100%); }
 .hero-copy { margin-bottom: 8rpx; }
 .hero-eyebrow { font-size: 22rpx; font-weight: 400; letter-spacing: 2rpx; color: #7965D8; }
-.hero-title { margin-top: 12rpx; font-size: 38rpx; line-height: 1.35; font-weight: 700; color: #0f172a; }
-.hero-text { margin-top: 12rpx; font-size: 26rpx; line-height: 1.7; color: #64748b; }
-.hero-user { display: flex; align-items: center; margin-top: 32rpx; padding: 24rpx 24rpx 24rpx 0; border-radius: 32rpx; background: rgba(248, 247, 252, 0.8); border: 1rpx solid #EAE7F2; }
+.hero-title { margin-top: 8rpx; font-size: 38rpx; line-height: 1.35; font-weight: 700; color: #0f172a; }
+.hero-text { margin-top: 8rpx; font-size: 26rpx; line-height: 1.7; color: #64748b; }
+.hero-user { display: flex; align-items: center; margin-top: 16rpx; padding: 24rpx 24rpx 24rpx 0; border-radius: 32rpx; background: rgba(248, 247, 252, 0.8); border: 1rpx solid #EAE7F2; }
 .avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #EEE9FF; border: 4rpx solid #ffffff; box-shadow: 0 4rpx 12rpx rgba(15, 23, 42, 0.06); }
 .user-meta { flex: 1; min-width: 0; margin-left: 28rpx; }
 .user-name { font-size: 28rpx; font-weight: 600; color: #0f172a; }
 .user-tip { margin-top: 6rpx; font-size: 20rpx; line-height: 1.5; color: #64748b; white-space: nowrap; }
-.hero-actions { margin-top: 32rpx; }
+.hero-actions { margin-top: 16rpx; }
 .hero-collect-button { display: flex; align-items: center; justify-content: center; gap: 12rpx; height: 96rpx; margin: 0; padding: 0; overflow: hidden; border-radius: 999rpx; background: linear-gradient(90deg, #7965D8 0%, #A18BEF 100%); color: #ffffff; font-size: 30rpx; box-shadow: 0 20rpx 40rpx rgba(121, 101, 216, 0.28); }
 .hero-collect-button::after { border: none; }
 .hero-plus { position: relative; width: 28rpx; height: 28rpx; }
 .hero-plus-bar { position: absolute; left: 50%; top: 50%; background: #ffffff; border-radius: 999rpx; }
 .hero-plus-h { width: 28rpx; height: 4rpx; margin-left: -14rpx; margin-top: -2rpx; }
 .hero-plus-v { width: 4rpx; height: 28rpx; margin-left: -2rpx; margin-top: -14rpx; }
-.stats-card, .quick-card { margin: 0 32rpx 32rpx; padding: 40rpx; background: #ffffff; }
+.stats-card, .quick-card { margin: 0 32rpx 16rpx; padding: 24rpx 40rpx; background: #ffffff; }
+.stats-card { padding: 20rpx 32rpx 16rpx; }
 .stats-head, .continue-card { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }
 .block-title { font-size: 32rpx; font-weight: 700; color: #0f172a; }
 .block-tip { margin-top: 6rpx; font-size: 24rpx; line-height: 1.5; color: #94a3b8; }
 .recent-pill { display: flex; align-items: center; gap: 8rpx; flex-shrink: 0; padding: 8rpx 20rpx; border-radius: 999rpx; background: #F8F7FC; border: 1rpx solid #EAE7F2; color: #94a3b8; font-size: 22rpx; }
 .recent-date { color: #475569; }
-.stats-grid { display: flex; gap: 24rpx; margin-top: 32rpx; }
-.stat-tile { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32rpx 12rpx; border-radius: 32rpx; background: rgba(248, 247, 252, 0.7); border: 1rpx solid rgba(234, 231, 242, 0.8); }
+.stats-grid { display: flex; gap: 24rpx; margin-top: 12rpx; }
+.stat-tile { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12rpx; border-radius: 32rpx; background: rgba(248, 247, 252, 0.7); border: 1rpx solid rgba(234, 231, 242, 0.8); }
 .stat-tile-link { background: rgba(243, 240, 255, 0.7); border-color: rgba(212, 204, 245, 0.8); }
 .stat-value { font-size: 60rpx; font-weight: 800; color: #0f172a; line-height: 1.1; }
 .stat-value-brand { color: #7965D8; }
@@ -654,37 +713,43 @@ watch(tagKeyword, () => {
 .mini-tag-icon { width: 22rpx; height: 16rpx; border: 2rpx solid #A18BEF; border-radius: 3rpx 8rpx 8rpx 3rpx; }
 .section-title { font-size: 30rpx; font-weight: 700; color: #1f2329; }
 .section-tip { margin-top: 8rpx; font-size: 24rpx; line-height: 1.7; color: #6b7280; }
-.tag-search-wrap { position: relative; margin-top: 28rpx; }
+.tag-search-wrap { position: relative; margin-top: 12rpx; }
 .tag-search-icon { position: absolute; left: 24rpx; top: 50%; width: 28rpx; height: 28rpx; margin-top: -14rpx; z-index: 1; }
 .tag-search-circle { position: absolute; left: 0; top: 2rpx; width: 16rpx; height: 16rpx; border: 3rpx solid #94a3b8; border-radius: 50%; }
 .tag-search-handle { position: absolute; left: 16rpx; top: 16rpx; width: 10rpx; height: 3rpx; background: #94a3b8; border-radius: 999rpx; transform: rotate(45deg); }
-.tag-search { min-height: 80rpx; padding: 0 24rpx 0 64rpx; border-radius: 24rpx; border: 1rpx solid rgba(234, 231, 242, 0.9); background: #F8F7FC; font-size: 24rpx; color: #1e293b; }
-.filter { display: flex; flex-wrap: wrap; align-items: center; gap: 16rpx; margin-top: 24rpx; overflow: hidden; }
+.tag-search { min-height: 64rpx; padding: 0 24rpx 0 64rpx; border-radius: 24rpx; border: 1rpx solid rgba(234, 231, 242, 0.9); background: #F8F7FC; font-size: 24rpx; color: #1e293b; }
+.filter { display: flex; flex-wrap: wrap; align-items: center; gap: 16rpx; margin-top: 8rpx; overflow: hidden; }
 .filter.collapsed { overflow: hidden; }
-.filter-item { padding: 12rpx 28rpx; border-radius: 999rpx; border: 1rpx solid #EAE7F2; background: #ffffff; font-size: 24rpx; font-weight: 600; color: #475569; }
+.filter-item { padding: 8rpx 28rpx; border-radius: 999rpx; border: 1rpx solid #EAE7F2; background: #ffffff; font-size: 24rpx; font-weight: 600; color: #475569; }
 .filter-item.active { background: #F3F0FF; color: #7965D8; border-color: #D4CCF5; }
 .tag-empty-hint { font-size: 22rpx; font-style: italic; color: #94a3b8; }
-.filter-toggle { display: flex; align-items: center; justify-content: center; gap: 8rpx; margin-top: 16rpx; font-size: 24rpx; color: #7965D8; }
+.filter-toggle { display: flex; align-items: center; justify-content: center; gap: 8rpx; margin-top: 8rpx; font-size: 24rpx; color: #7965D8; }
 .filter-toggle-arrow { font-size: 24rpx; line-height: 1; transform: rotate(0deg); transition: transform 0.2s ease; }
 .filter-toggle-arrow.expanded { transform: rotate(180deg); }
-.continue-button { display: flex; align-items: center; justify-content: center; gap: 6rpx; flex-shrink: 0; height: 64rpx; margin: 0; padding: 0 28rpx; line-height: 64rpx; border-radius: 999rpx; border: 1rpx solid rgba(212, 204, 245, 0.95); background: rgba(243, 240, 255, 0.9); color: #7965D8; font-size: 24rpx; font-weight: 600; }
+.continue-card { padding: 24rpx; }
+.continue-copy { flex: 1; min-width: 0; margin-right: 12rpx; }
+.continue-tip { white-space: nowrap; }
+.continue-button { display: flex; align-items: center; justify-content: center; gap: 6rpx; flex-shrink: 0; height: 64rpx; margin: 0 0 0 auto; padding: 0 20rpx; line-height: 64rpx; border-radius: 999rpx; border: 1rpx solid rgba(212, 204, 245, 0.95); background: rgba(243, 240, 255, 0.9); color: #7965D8; font-size: 24rpx; font-weight: 600; }
 .continue-button::after { border: none; }
 .continue-arrow { width: 12rpx; height: 12rpx; border-top: 3rpx solid #7965D8; border-right: 3rpx solid #7965D8; transform: rotate(45deg); }
-.status-box { margin: 24rpx; padding: 80rpx 24rpx; text-align: center; color: #666; border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); background: #fff; }
+.status-box { margin: 0 32rpx 16rpx; padding: 80rpx 24rpx; text-align: center; color: #666; border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); background: #fff; }
 .status-title { font-size: 34rpx; font-weight: 700; color: #1f2329; }
 .status-text { margin-top: 12rpx; font-size: 26rpx; }
 .empty-title { font-size: 34rpx; font-weight: 700; color: #1f2329; }
 .empty-desc { margin-top: 16rpx; font-size: 26rpx; line-height: 1.8; color: #6b7280; }
-.gallery-section { margin-top: 8rpx; }
+.gallery-section { margin-top: 0; }
+.back-top { position: fixed; right: 32rpx; bottom: 32rpx; z-index: 20; display: flex; align-items: center; justify-content: center; width: 84rpx; height: 84rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.58); border: 1rpx solid rgba(255, 255, 255, 0.72); box-shadow: 0 10rpx 28rpx rgba(41, 38, 59, 0.12); backdrop-filter: blur(18rpx); -webkit-backdrop-filter: blur(18rpx); }
+.back-top-arrow { width: 18rpx; height: 18rpx; margin-top: 8rpx; border-top: 4rpx solid rgba(121, 101, 216, 0.92); border-left: 4rpx solid rgba(121, 101, 216, 0.92); transform: rotate(45deg); }
 .gallery-header { padding: 0 24rpx 12rpx; }
 .container { display: flex; padding: 0 10rpx 20rpx; box-sizing: border-box; }
 .column { flex: 1; margin: 0 10rpx; }
-.card { margin-bottom: 20rpx; overflow: hidden; background: #fff; }
+.card { margin-bottom: 20rpx; background: #fff; border-radius: 24rpx; }
 .card-meta { padding: 16rpx 18rpx 20rpx; }
 .card-tags { font-size: 22rpx; color: #7965D8; }
 .card-time { margin-top: 8rpx; font-size: 22rpx; color: #86909c; }
 .image-error { margin-top: 12rpx; color: #d93025; font-size: 24rpx; text-align: center; }
-image { width: 100%; border-radius: 12rpx; transition: opacity 0.3s ease; }
+image { width: 100%; border-radius: 12rpx; }
+.gallery-image { display: block; width: 100%; border-radius: 24rpx 24rpx 0 0; }
 .modal-mask, .login-mask { position: fixed; inset: 0; z-index: 99; display: flex; align-items: center; justify-content: center; padding: 32rpx; background: rgba(15, 23, 42, 0.45); box-sizing: border-box; }
 .login-card, .modal-card { width: 100%; padding: 36rpx 28rpx; background: #fff; box-sizing: border-box; }
 button { border-radius: 999rpx; }

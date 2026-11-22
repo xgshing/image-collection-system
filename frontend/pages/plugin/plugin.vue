@@ -245,15 +245,15 @@ const copyDownloadUrl = () => {
 </script>
 
 <style>
-.page { min-height: 100vh; padding: 32rpx 32rpx 48rpx; box-sizing: border-box; background: #F8F7FC; }
-.hero-card, .card, .workflow-card { margin-bottom: 32rpx; padding: 40rpx; border-radius: 48rpx; border: 1rpx solid rgba(15, 23, 42, 0.08); box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.04); background: #fff; box-sizing: border-box; }
+.page { min-height: 100vh; padding: 16rpx 32rpx 32rpx; box-sizing: border-box; background: #F8F7FC; }
+.hero-card, .card, .workflow-card { margin-bottom: 16rpx; padding: 24rpx 40rpx; border-radius: 48rpx; border: 1rpx solid rgba(15, 23, 42, 0.08); box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.04); background: #fff; box-sizing: border-box; }
 .hero-card { background: linear-gradient(180deg, #F3F0FF 0%, #ffffff 42%); }
 .eyebrow, .workflow-eyebrow { font-size: 22rpx; font-weight: 700; letter-spacing: 3rpx; color: #7965D8; }
-.hero-title { margin-top: 16rpx; font-size: 44rpx; line-height: 1.35; font-weight: 800; color: #0f172a; }
+.hero-title { margin-top: 8rpx; font-size: 44rpx; line-height: 1.35; font-weight: 800; color: #0f172a; }
 .hero-em { color: #7965D8; }
 .hero-text, .feature-text, .section-tip, .step-text, .usage-note, .faq-answer { font-size: 24rpx; line-height: 1.7; color: #64748b; }
-.hero-text { margin-top: 16rpx; }
-.browser { margin-top: 32rpx; overflow: hidden; border-radius: 28rpx; border: 1rpx solid rgba(234, 231, 242, 0.9); background: #fff; box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.08); }
+.hero-text { margin-top: 8rpx; }
+.browser { margin-top: 8rpx; overflow: hidden; border-radius: 28rpx; border: 1rpx solid rgba(234, 231, 242, 0.9); background: #fff; box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.08); }
 .browser-bar { display: flex; align-items: center; gap: 10rpx; padding: 14rpx 16rpx; background: rgba(248, 247, 252, 0.9); }
 .window-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: #ff5f56; }
 .window-dot-mid { background: #ffbd2e; }
@@ -268,19 +268,19 @@ const copyDownloadUrl = () => {
 .menu-item-active { background: #F3F0FF; color: #7965D8; font-weight: 700; }
 .menu-mark { width: 12rpx; height: 12rpx; margin-right: 12rpx; border-radius: 50%; background: #7965D8; }
 .section-head, .card-head, .install-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; }
-.section-head { margin: 8rpx 8rpx 24rpx; }
+.section-head { margin: 0 8rpx 8rpx; }
 .section-title { font-size: 32rpx; font-weight: 700; color: #0f172a; }
-.section-tip { margin-top: 8rpx; }
+.section-tip { margin-top: 4rpx; }
 .section-badge, .stable-badge, .help-label { flex-shrink: 0; font-size: 22rpx; color: #94a3b8; }
 .stable-badge { padding: 6rpx 16rpx; border-radius: 999rpx; background: #ecfdf5; color: #059669; border: 1rpx solid #d1fae5; }
 .feature-index { font-size: 22rpx; font-weight: 800; color: #7965D8; }
-.feature-title { margin-top: 8rpx; font-size: 32rpx; font-weight: 700; color: #0f172a; }
-.feature-text { margin-top: 8rpx; }
-.photo-stage, .popup-mock, .sync-pane, .step-row, .usage-item { margin-top: 24rpx; }
+.feature-title { margin-top: 4rpx; font-size: 32rpx; font-weight: 700; color: #0f172a; }
+.feature-text { margin-top: 4rpx; }
+.photo-stage, .popup-mock, .sync-pane, .step-row, .usage-item { margin-top: 8rpx; }
 .photo-stage { position: relative; height: 256rpx; overflow: hidden; border-radius: 20rpx; background: #0f172a; }
 .photo-shade { position: absolute; left: 0; right: 0; bottom: 0; height: 140rpx; background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.45) 100%); }
 .glass-toast { position: absolute; left: 20rpx; right: 20rpx; bottom: 20rpx; display: flex; align-items: center; gap: 12rpx; padding: 16rpx 20rpx; border-radius: 20rpx; background: rgba(255, 255, 255, 0.92); color: #334155; font-size: 22rpx; }
-.popup-mock { margin-top: 24rpx; padding: 20rpx; border-radius: 24rpx; background: #F8F7FC; border: 1rpx solid rgba(234, 231, 242, 0.8); }
+.popup-mock { margin-top: 8rpx; padding: 20rpx; border-radius: 24rpx; background: #F8F7FC; border: 1rpx solid rgba(234, 231, 242, 0.8); }
 .file-mock { display: flex; align-items: stretch; margin-top: 0; padding: 0; background: transparent; border: none; }
 .toast-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: #7965D8; }
 .toast-ok { margin-left: auto; color: #059669; font-weight: 700; }
@@ -294,7 +294,7 @@ const copyDownloadUrl = () => {
 .tag-row { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 20rpx; }
 .tag-chip { padding: 8rpx 18rpx; border-radius: 999rpx; background: #F3F0FF; color: #7965D8; font-size: 22rpx; }
 .tag-chip-add { background: #F8F7FC; color: #64748b; border: 1rpx solid #EAE7F2; }
-.sync-row { display: flex; align-items: center; gap: 16rpx; margin-top: 24rpx; }
+.sync-row { display: flex; align-items: center; gap: 16rpx; margin-top: 8rpx; }
 .sync-pane { flex: 1; margin-top: 0; padding: 24rpx 20rpx; border-radius: 24rpx; background: #F8F7FC; border: 1rpx solid #EAE7F2; }
 .sync-pane-brand { background: #F3F0FF; border-color: #EEE9FF; }
 .sync-label { font-size: 22rpx; color: #94a3b8; }
@@ -303,27 +303,27 @@ const copyDownloadUrl = () => {
 .workflow-card { background: linear-gradient(135deg, #7965D8 0%, #A18BEF 100%); border: none; }
 .workflow-eyebrow, .workflow-title, .workflow-text, .workflow-name { color: #fff; }
 .workflow-eyebrow { color: #D4CCF5; }
-.workflow-title { margin-top: 8rpx; font-size: 32rpx; font-weight: 700; }
-.workflow-text { margin-top: 8rpx; color: #EEE9FF; font-size: 24rpx; }
-.workflow-grid { display: flex; gap: 12rpx; margin-top: 28rpx; }
+.workflow-title { margin-top: 4rpx; font-size: 32rpx; font-weight: 700; }
+.workflow-text { margin-top: 4rpx; color: #EEE9FF; font-size: 24rpx; }
+.workflow-grid { display: flex; gap: 12rpx; margin-top: 8rpx; }
 .workflow-item { flex: 1; min-width: 0; padding: 16rpx 8rpx; border-radius: 24rpx; background: rgba(255, 255, 255, 0.12); text-align: center; }
 .workflow-no { width: 36rpx; height: 36rpx; margin: 0 auto 8rpx; border-radius: 50%; background: #fff; color: #7965D8; font-size: 20rpx; font-weight: 800; line-height: 36rpx; }
 .workflow-name { font-size: 22rpx; font-weight: 700; }
 .workflow-sub { margin-top: 4rpx; font-size: 18rpx; color: #D4CCF5; }
-.download-box { margin-top: 24rpx; padding: 24rpx; border-radius: 24rpx; background: #F8F7FC; border: 1rpx solid #EAE7F2; }
+.download-box { margin-top: 8rpx; padding: 16rpx 24rpx; border-radius: 24rpx; background: #F8F7FC; border: 1rpx solid #EAE7F2; }
 .download-box.pending { background: #EAE7F2; }
 .download-label { font-size: 22rpx; font-weight: 700; color: #94a3b8; }
-.download-url { margin-top: 10rpx; font-size: 24rpx; line-height: 1.7; color: #334155; word-break: break-all; }
-.copy-button { display: flex; align-items: center; justify-content: center; height: 88rpx; margin: 24rpx 0 0; padding: 0; border-radius: 28rpx; background: #7965D8; color: #fff; font-size: 28rpx; font-weight: 700; }
+.download-url { margin-top: 6rpx; font-size: 24rpx; line-height: 1.7; color: #334155; word-break: break-all; }
+.copy-button { display: flex; align-items: center; justify-content: center; height: 88rpx; margin: 8rpx 0 0; padding: 0; border-radius: 28rpx; background: #7965D8; color: #fff; font-size: 28rpx; font-weight: 700; }
 .copy-button:active, .save-pill:active { background: #6554C0; }
 .copy-button::after { border: none; }
-.inline-tip { margin-top: 16rpx; font-size: 24rpx; line-height: 1.7; color: #d93025; }
-.install-head { margin-top: 36rpx; padding-top: 32rpx; border-top: 1rpx solid #EAE7F2; }
+.inline-tip { margin-top: 8rpx; font-size: 24rpx; line-height: 1.7; color: #d93025; }
+.install-head { margin-top: 12rpx; padding-top: 12rpx; border-top: 1rpx solid #EAE7F2; }
 .install-title { font-size: 28rpx; }
 .browser-switch { display: flex; padding: 4rpx; border-radius: 16rpx; background: #EAE7F2; }
 .browser-tab { padding: 10rpx 22rpx; border-radius: 12rpx; color: #64748b; font-size: 24rpx; font-weight: 700; }
 .browser-tab.active { background: #fff; color: #7965D8; box-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.06); }
-.step-row, .usage-item { display: flex; align-items: flex-start; gap: 16rpx; padding: 20rpx; border-radius: 24rpx; background: #F8F7FC; border: 1rpx solid #EAE7F2; }
+.step-row, .usage-item { display: flex; align-items: flex-start; gap: 16rpx; padding: 14rpx 20rpx; border-radius: 24rpx; background: #F8F7FC; border: 1rpx solid #EAE7F2; }
 .step-no { width: 40rpx; height: 40rpx; border-radius: 50%; background: #EEE9FF; color: #6554C0; font-size: 22rpx; font-weight: 800; line-height: 40rpx; text-align: center; flex-shrink: 0; }
 .step-text { flex: 1; color: #475569; }
 .usage-item { display: block; }
@@ -331,11 +331,11 @@ const copyDownloadUrl = () => {
 .usage-note { margin-top: 6rpx; }
 .title-mark { padding-left: 16rpx; border-left: 6rpx solid #7965D8; }
 .help-label { color: #94a3b8; font-size: 24rpx; }
-.faq-item { margin-top: 20rpx; border: 1rpx solid rgba(234, 231, 242, 0.9); border-radius: 32rpx; overflow: hidden; }
-.faq-question { display: flex; align-items: center; gap: 12rpx; padding: 24rpx; background: rgba(248, 247, 252, 0.8); }
+.faq-item { margin-top: 12rpx; border: 1rpx solid rgba(234, 231, 242, 0.9); border-radius: 32rpx; overflow: hidden; }
+.faq-question { display: flex; align-items: center; gap: 12rpx; padding: 16rpx 24rpx; background: rgba(248, 247, 252, 0.8); }
 .faq-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: #7965D8; flex-shrink: 0; }
 .faq-qtext { flex: 1; font-size: 26rpx; font-weight: 700; color: #1e293b; }
 .faq-chevron { width: 14rpx; height: 14rpx; border-right: 3rpx solid #94a3b8; border-bottom: 3rpx solid #94a3b8; transform: rotate(45deg); }
 .faq-chevron.open { transform: rotate(225deg); }
-.faq-answer { padding: 20rpx 24rpx 24rpx; background: #fff; border-top: 1rpx solid #EAE7F2; }
+.faq-answer { padding: 12rpx 24rpx 16rpx; background: #fff; border-top: 1rpx solid #EAE7F2; }
 </style>

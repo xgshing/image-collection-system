@@ -33,7 +33,7 @@ public class MiniappAuthController {
         data.put("userId", result.getUserId());
         data.put("sessionToken", result.getSessionToken());
         data.put("nickName", result.getNickName());
-        data.put("avatarUrl", result.getAvatarUrl());
+        data.put("avatarUrl", storageService.readableUrl(result.getAvatarUrl()));
         return data;
     }
 
@@ -58,7 +58,7 @@ public class MiniappAuthController {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("userId", user.getId());
         data.put("nickName", user.getNickName());
-        data.put("avatarUrl", user.getAvatarUrl());
+        data.put("avatarUrl", storageService.readableUrl(user.getAvatarUrl()));
         return data;
     }
 

@@ -76,7 +76,10 @@ public class ImageServiceImpl implements ImageService {
         List<Image> images = (tag == null || tag.isBlank())
                 ? imageMapper.findAll(userId)
                 : imageMapper.findByTag(userId, tag.trim());
-        images.forEach(this::fillTags);
+        images.forEach(image -> {
+            fillTags(image);
+            image.setLocalUrl(storageService.readableUrl(image.getLocalUrl()));
+        });
         return images;
     }
 
@@ -101,7 +104,7 @@ public class ImageServiceImpl implements ImageService {
 
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("imageId", image.getId());
-            item.put("localUrl", image.getLocalUrl());
+            item.put("localUrl", storageService.readableUrl(image.getLocalUrl()));
             item.put("sourceUrl", image.getUrl());
             item.put("createTime", image.getCreateTime());
             item.put("tags", image.getTags());
@@ -123,6 +126,7 @@ public class ImageServiceImpl implements ImageService {
             return null;
         }
         fillTags(image);
+        image.setLocalUrl(storageService.readableUrl(image.getLocalUrl()));
         return image;
     }
 
@@ -304,7 +308,7 @@ public class ImageServiceImpl implements ImageService {
         result.put("status", status);
         result.put("message", message);
         result.put("imageId", image.getId());
-        result.put("localUrl", image.getLocalUrl());
+        result.put("localUrl", storageService.readableUrl(image.getLocalUrl()));
         result.put("createTime", image.getCreateTime());
         result.put("tags", image.getTags() == null ? List.of() : image.getTags());
         return result;
