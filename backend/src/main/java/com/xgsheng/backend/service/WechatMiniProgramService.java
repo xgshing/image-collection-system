@@ -3,6 +3,11 @@ package com.xgsheng.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xgsheng.backend.config.WechatMiniProgramProperties;
+import com.xgsheng.backend.exception.BusinessException;
+import com.xgsheng.backend.project.InviteToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -16,23 +21,31 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class WechatMiniProgramService {
 
+    private static final Logger log = LoggerFactory.getLogger(WechatMiniProgramService.class);
+    private static final Set<Integer> INVALID_ACCESS_TOKEN = Set.of(40001, 40014, 42001);
+    private static final String MINI_CODE_FAILED = "wechat mini code failed";
+
     private final WechatMiniProgramProperties properties;
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
+    private final WechatTransport transport;
 
     private volatile String cachedAccessToken;
     private volatile Instant accessTokenExpiresAt;
 
+    @Autowired
     public WechatMiniProgramService(WechatMiniProgramProperties properties) {
+        this(properties, new JdkWechatTransport());
+    }
+
+    WechatMiniProgramService(WechatMiniProgramProperties properties, WechatTransport transport) {
         this.properties = properties;
         this.objectMapper = new ObjectMapper();
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        this.transport = transport;
     }
 
     public boolean isConfigured() {
@@ -53,14 +66,7 @@ public class WechatMiniProgramService {
                 + "&js_code=" + urlEncode(code)
                 + "&grant_type=authorization_code";
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(10))
-                .GET()
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        JsonNode node = objectMapper.readTree(response.body());
+        JsonNode node = objectMapper.readTree(transport.get(URI.create(url)));
 
         if (!node.path("errcode").isMissingNode() && node.path("errcode").asInt() != 0) {
             throw new IllegalStateException("jscode2session failed: " + node.path("errmsg").asText("unknown error"));
@@ -78,30 +84,53 @@ public class WechatMiniProgramService {
     }
 
     public byte[] createPluginLoginCode(String token) throws IOException, InterruptedException {
+        try {
+            return requestUnlimitedCode(token, true);
+        } catch (WechatMiniCodeException ex) {
+            throw new IllegalStateException("wechat mini code failed: " + ex.errmsg);
+        }
+    }
+
+    public byte[] createInviteMiniCode(String scene) {
+        if (!InviteToken.isScene(scene) || !isConfigured()) {
+            throw BusinessException.unavailable(MINI_CODE_FAILED);
+        }
+        try {
+            return requestUnlimitedCode(scene, true);
+        } catch (WechatMiniCodeException ex) {
+            log.warn("Invite mini code rejected, errcode={}", ex.errcode);
+            throw BusinessException.unavailable(MINI_CODE_FAILED);
+        } catch (IOException | InterruptedException | RuntimeException ex) {
+            if (ex instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.warn("Invite mini code request failed");
+            throw BusinessException.unavailable(MINI_CODE_FAILED);
+        }
+    }
+
+    private byte[] requestUnlimitedCode(String scene, boolean retryOnInvalidToken)
+            throws IOException, InterruptedException, WechatMiniCodeException {
         String accessToken = getAccessToken();
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("scene", token);
+        payload.put("scene", scene);
         payload.put("page", "pages/index/index");
         payload.put("check_path", false);
         payload.put("width", 430);
         payload.put("env_version", properties.getCodeEnvVersion());
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=" + accessToken))
-                .header("Content-Type", "application/json")
-                .timeout(Duration.ofSeconds(15))
-                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
-                .build();
-
-        HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-        byte[] body = response.body();
-
-        if (isWechatJsonError(body)) {
-            JsonNode node = objectMapper.readTree(body);
-            throw new IllegalStateException("wechat mini code failed: " + node.path("errmsg").asText("unknown error"));
+        byte[] body = transport.post(
+                URI.create("https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=" + accessToken),
+                objectMapper.writeValueAsString(payload));
+        if (!isWechatJsonError(body)) {
+            return body;
         }
-
-        return body;
+        JsonNode node = objectMapper.readTree(body);
+        int errcode = node.path("errcode").asInt(-1);
+        if (retryOnInvalidToken && INVALID_ACCESS_TOKEN.contains(errcode)) {
+            invalidateAccessToken();
+            return requestUnlimitedCode(scene, false);
+        }
+        throw new WechatMiniCodeException(errcode, node.path("errmsg").asText("unknown error"));
     }
 
     private synchronized String getAccessToken() throws IOException, InterruptedException {
@@ -113,15 +142,7 @@ public class WechatMiniProgramService {
         String url = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential"
                 + "&appid=" + urlEncode(properties.getAppId())
                 + "&secret=" + urlEncode(properties.getAppSecret());
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(10))
-                .GET()
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        JsonNode node = objectMapper.readTree(response.body());
+        JsonNode node = objectMapper.readTree(transport.get(URI.create(url)));
         if (!node.path("errcode").isMissingNode() && node.path("errcode").asInt() != 0) {
             throw new IllegalStateException("get access token failed: " + node.path("errmsg").asText("unknown error"));
         }
@@ -132,16 +153,57 @@ public class WechatMiniProgramService {
         return cachedAccessToken;
     }
 
+    private synchronized void invalidateAccessToken() {
+        cachedAccessToken = null;
+        accessTokenExpiresAt = null;
+    }
+
     private boolean isWechatJsonError(byte[] body) {
         if (body == null || body.length == 0) {
             return true;
         }
-        byte firstByte = body[0];
-        return firstByte == '{';
+        return body[0] == '{';
     }
 
     private String urlEncode(String value) {
         return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+    }
+
+    private static final class WechatMiniCodeException extends Exception {
+        private final int errcode;
+        private final String errmsg;
+
+        private WechatMiniCodeException(int errcode, String errmsg) {
+            this.errcode = errcode;
+            this.errmsg = errmsg;
+        }
+    }
+
+    private static final class JdkWechatTransport implements WechatTransport {
+        private final HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+
+        @Override
+        public String get(URI uri) throws IOException, InterruptedException {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+            return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).body();
+        }
+
+        @Override
+        public byte[] post(URI uri, String json) throws IOException, InterruptedException {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(15))
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray()).body();
+        }
     }
 
     public static class MiniappSessionInfo {

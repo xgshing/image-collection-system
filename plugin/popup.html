@@ -47,14 +47,16 @@
         <label class="field-label" for="tagInput">标签</label>
         <div class="tag-editor">
           <div id="selectedTags" class="selected-tags"></div>
-          <input
-            id="tagInput"
-            class="text-input"
-            type="text"
-            placeholder="输入标签后回车，或使用逗号分隔"
-            autocomplete="off"
-          />
-          <div id="tagSuggestions" class="tag-suggestions" style="display: none;"></div>
+          <div id="tagInputWrap" class="tag-input-wrap">
+            <input
+              id="tagInput"
+              class="text-input"
+              type="text"
+              placeholder="输入标签后回车，或使用逗号分隔"
+              autocomplete="off"
+            />
+            <div id="tagSuggestions" class="tag-suggestions" style="display: none;"></div>
+          </div>
         </div>
 
         <div id="saveFeedback" class="save-feedback"></div>

@@ -5,6 +5,9 @@
         <view class="topbar-title">我的灵感库</view>
         <view class="topbar-subtitle">先收藏，后整理，之后总能找回来。</view>
       </view>
+      <view v-if="isLoggedIn" class="topbar-avatar-wrap" @click="handleUserAreaClick">
+        <image class="topbar-avatar" :src="displayAvatarSrc" mode="aspectFill" />
+      </view>
     </view>
 
     <view class="hero-card">
@@ -14,9 +17,9 @@
         <view class="hero-text">看到喜欢的图先收藏，不用存进相册，也不用再翻聊天记录和浏览器历史。</view>
       </view>
 
-      <view class="hero-user" @click="handleUserAreaClick">
-        <image class="avatar" :src="displayAvatar" mode="aspectFill" />
-        <view class="user-meta">
+      <view class="hero-user" :class="{ logged: isLoggedIn }" @click="handleUserAreaClick">
+        <image v-if="!isLoggedIn" class="avatar" :src="displayAvatarSrc" mode="aspectFill" />
+        <view class="user-meta" :class="{ flush: isLoggedIn }">
           <view class="user-name">{{ displayNickname }}</view>
           <view class="user-tip">
             {{ isLoggedIn ? '资料已准备好，现在可以开始整理你的收藏。' : '完成登录后，可在插件和小程序之间同步收藏。' }}
@@ -133,7 +136,7 @@
       <view class="container">
         <view class="column">
           <view v-for="item in leftList" :key="item.id" class="card" @click="goDetail(item)">
-            <image class="gallery-image" :src="resolveImageUrl(item.localUrl)" mode="widthFix" @error="handleImageError(item)" />
+            <image class="gallery-image" :src="item.displayUrl || resolveImageUrl(item.localUrl)" mode="widthFix" @error="handleImageError(item)" />
             <view class="card-meta">
               <view v-if="item.tags?.length" class="card-tags">{{ item.tags.join(' / ') }}</view>
               <view class="card-time">{{ formatRecentTime(item.createTime) }}</view>
@@ -144,7 +147,7 @@
 
         <view class="column">
           <view v-for="item in rightList" :key="item.id" class="card" @click="goDetail(item)">
-            <image class="gallery-image" :src="resolveImageUrl(item.localUrl)" mode="widthFix" @error="handleImageError(item)" />
+            <image class="gallery-image" :src="item.displayUrl || resolveImageUrl(item.localUrl)" mode="widthFix" @error="handleImageError(item)" />
             <view class="card-meta">
               <view v-if="item.tags?.length" class="card-tags">{{ item.tags.join(' / ') }}</view>
               <view class="card-time">{{ formatRecentTime(item.createTime) }}</view>
@@ -159,47 +162,7 @@
       <view class="back-top-arrow"></view>
     </view>
 
-    <view v-if="showLoginForm" class="login-mask">
-      <view class="login-card">
-        <view class="login-title">登录后继续收藏</view>
-        <view class="login-text">收藏图片前，请先设置头像和昵称。不登录也可以继续浏览。</view>
-        <button class="avatar-picker" open-type="chooseAvatar" @chooseavatar="handleChooseAvatar">
-          <image class="avatar-preview" :src="displayAvatar" mode="aspectFill" />
-          <text class="avatar-picker-text">选择头像</text>
-        </button>
-        <input
-          class="nickname-input"
-          type="nickname"
-          placeholder="请输入昵称"
-          :value="pendingNickname"
-          @input="handleNicknameInput"
-        />
-        <button class="primary-button" :loading="authLoading" @click="handleProfileConfirm">保存并继续</button>
-        <button class="ghost-button login-later" @click="dismissAuthPrompt">先看看</button>
-      </view>
-    </view>
-
-    <view v-if="showPrivacyModal" class="modal-mask">
-      <view class="modal-card">
-        <view class="modal-title">收藏前请确认</view>
-        <view class="modal-desc">请先阅读并同意以下协议，再继续收藏。不登录也可以先浏览。</view>
-
-        <label class="check-line" @click="toggleAgreement('user')">
-          <checkbox :checked="userAgreementChecked" color="#7965D8" />
-          <view class="check-text">同意 <text class="link-text" @click.stop="openAgreement('user')">《用户协议》</text></view>
-        </label>
-
-        <label class="check-line" @click="toggleAgreement('privacy')">
-          <checkbox :checked="privacyPolicyChecked" color="#7965D8" />
-          <view class="check-text">同意 <text class="link-text" @click.stop="openAgreement('privacy')">《隐私政策》</text></view>
-        </label>
-
-        <view class="modal-actions">
-          <button class="ghost-button" @click="handleReject">取消</button>
-          <button class="primary-button" :loading="authLoading" @click="handleAgreeAndContinue">继续</button>
-        </view>
-      </view>
-    </view>
+    <auth-sheet :visible="authPromptVisible" :title="authTitle" @close="dismissAuthPrompt" @success="handleLoginSuccess" />
   </view>
 </template>
 
@@ -208,19 +171,21 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { onHide, onLoad, onPageScroll, onShow } from '@dcloudio/uni-app'
 import baseUrl from '../../utils/base-url'
 import resolveImageUrl from '../../utils/image-url'
-import { request, uploadFile } from '../../utils/request'
+import { toDisplayImageSrc } from '../../utils/http-image'
+import { request } from '../../utils/request'
 import {
+  clearAccountSession,
   clearPluginLoginToken,
-  clearSessionToken,
   getPluginLoginToken,
   getPrivacyConsent,
   getSessionToken,
   getUserProfile,
+  isAccountReady,
   setPluginLoginToken,
-  setPrivacyConsent,
-  setSessionToken,
   setUserProfile
 } from '../../utils/auth'
+import AuthSheet from '../../components/auth-sheet.vue'
+import { INVITE_SCENE_KEY, PENDING_PAGE_KEY } from '../../utils/watermark-session'
 
 const REFRESH_KEY = 'image_list_should_refresh'
 const AUTO_REFRESH_INTERVAL = 8000
@@ -234,12 +199,7 @@ const pageState = ref('loading')
 const hasConsented = ref(false)
 const authPromptVisible = ref(false)
 const pendingAction = ref('')
-const authLoading = ref(false)
-const userAgreementChecked = ref(false)
-const privacyPolicyChecked = ref(false)
 const userProfile = ref(null)
-const pendingAvatarUrl = ref('')
-const pendingNickname = ref('')
 const pendingPluginLoginToken = ref('')
 const showBackTop = ref(false)
 const tagKeyword = ref('')
@@ -255,13 +215,39 @@ const isHttpUrl = (value) => /^https?:\/\//i.test((value || '').trim())
 
 const stats = ref({ total: 0, tags: 0, lastUpload: '' })
 
-const isLoggedIn = computed(() => Boolean(userProfile.value?.nickName && userProfile.value?.avatarUrl))
-const profileCompleted = computed(() => Boolean(userProfile.value?.nickName && isHttpUrl(userProfile.value?.avatarUrl) && userProfile.value.nickName !== defaultNickname))
-const authRequired = computed(() => !(profileCompleted.value && getSessionToken()))
-const showPrivacyModal = computed(() => authPromptVisible.value && !hasConsented.value)
-const showLoginForm = computed(() => authPromptVisible.value && hasConsented.value && authRequired.value)
-const displayAvatar = computed(() => pendingAvatarUrl.value || (isHttpUrl(userProfile.value?.avatarUrl) ? userProfile.value.avatarUrl : defaultAvatar))
-const displayNickname = computed(() => pendingNickname.value || userProfile.value?.nickName || '未登录')
+const isLoggedIn = computed(() => isAccountReady(userProfile.value))
+const profileCompleted = isLoggedIn
+const authRequired = computed(() => !isLoggedIn.value)
+const authTitle = computed(() => pendingAction.value === 'watermark' ? '登录后使用水印相机' : '登录后继续收藏')
+const displayAvatarSrc = ref(defaultAvatar)
+const displayNickname = computed(() => isLoggedIn.value ? userProfile.value.nickName : '未登录')
+
+const markLoggedOut = () => {
+  clearAccountSession()
+  userProfile.value = null
+  displayAvatarSrc.value = defaultAvatar
+  splitList([])
+  stats.value = { total: 0, tags: 0, lastUpload: '' }
+  tagList.value = [{ label: '全部', value: '' }]
+  stopAutoRefresh()
+}
+
+watch(
+  () => [isLoggedIn.value, userProfile.value?.avatarUrl],
+  async ([loggedIn, avatarUrl]) => {
+    if (!loggedIn) {
+      displayAvatarSrc.value = defaultAvatar
+      return
+    }
+    displayAvatarSrc.value = (await toDisplayImageSrc(avatarUrl)) || defaultAvatar
+  },
+  { immediate: true }
+)
+
+const withDisplayUrls = async (list = []) => Promise.all(list.map(async (item) => ({
+  ...item,
+  displayUrl: await toDisplayImageSrc(item.localUrl)
+})))
 const filteredTagList = computed(() => {
   const keyword = tagKeyword.value.trim().toLowerCase()
   if (!keyword) return tagList.value
@@ -318,8 +304,13 @@ const requestList = async (tagValue = '', { silent = false } = {}) => {
   }
   try {
     const res = await request({ url: `${baseUrl}/api/image/list`, data: tagValue ? { tag: tagValue } : {} })
+    if (res.statusCode === 401) {
+      markLoggedOut()
+      authPromptVisible.value = true
+      return
+    }
     if (res.statusCode !== 200) throw new Error(`request failed: ${res.statusCode}`)
-    const list = Array.isArray(res.data) ? res.data : []
+    const list = await withDisplayUrls(Array.isArray(res.data) ? res.data : [])
     splitList(list, { preserveImages: silent })
     stats.value.total = list.length
     stats.value.lastUpload = formatRecentTime(list[0]?.createTime)
@@ -338,6 +329,11 @@ const requestTags = async () => {
   if (!isLoggedIn.value) return
   try {
     const res = await request({ url: `${baseUrl}/api/image/tags` })
+    if (res.statusCode === 401) {
+      markLoggedOut()
+      authPromptVisible.value = true
+      return
+    }
     if (res.statusCode !== 200 || !Array.isArray(res.data)) return
     stats.value.tags = res.data.length
     tagList.value = [{ label: '全部', value: '' }, ...res.data.map((tag) => ({ label: tag, value: tag }))]
@@ -400,6 +396,7 @@ const openAuthPrompt = (action) => {
 }
 
 const dismissAuthPrompt = () => {
+  if (pendingAction.value === 'watermark') uni.removeStorageSync(PENDING_PAGE_KEY)
   authPromptVisible.value = false
   pendingAction.value = ''
 }
@@ -413,6 +410,10 @@ const continuePendingAction = () => {
     return
   }
   if (action === 'tags') uni.navigateTo({ url: '/pages/collect/collect?manageTags=1' })
+  if (action === 'watermark') {
+    uni.removeStorageSync(PENDING_PAGE_KEY)
+    uni.switchTab({ url: '/pages/watermark/home' })
+  }
 }
 
 const handleUserAreaClick = () => {
@@ -440,142 +441,14 @@ const goTagManager = () => {
   openAuthPrompt('tags')
 }
 const goDetail = (item) => uni.navigateTo({ url: `/pages/detail/detail?id=${item.id}` })
-const openAgreement = (type) => uni.navigateTo({ url: `/pages/agreement/detail?type=${type}` })
 
-const toggleAgreement = (type) => {
-  if (type === 'user') {
-    userAgreementChecked.value = !userAgreementChecked.value
-    return
-  }
-  privacyPolicyChecked.value = !privacyPolicyChecked.value
-}
-
-const handleReject = () => {
-  dismissAuthPrompt()
-}
-
-const requestLoginCode = () => new Promise((resolve, reject) => {
-  uni.login({ provider: 'weixin', success: resolve, fail: reject })
-})
-
-const requestWechatPrivacyAuthorize = () => new Promise((resolve, reject) => {
-  // #ifdef MP-WEIXIN
-  if (typeof wx?.requirePrivacyAuthorize === 'function') {
-    wx.requirePrivacyAuthorize({ success: resolve, fail: reject })
-    return
-  }
-  // #endif
-  resolve()
-})
-
-const uploadMiniappAvatar = (filePath) => new Promise((resolve, reject) => {
-  uploadFile({
-    url: `${baseUrl}/api/auth/miniapp/avatar`,
-    auth: false,
-    filePath,
-    name: 'file',
-    success(res) {
-      let payload = res.data
-      if (typeof payload === 'string') {
-        try {
-          payload = JSON.parse(payload)
-        } catch (error) {
-          reject(error)
-          return
-        }
-      }
-      if (res.statusCode !== 200 || !payload?.avatarUrl) {
-        reject(new Error(payload?.message || 'avatar upload failed'))
-        return
-      }
-      resolve(payload.avatarUrl)
-    },
-    fail: reject
-  })
-})
-
-const normalizeProfile = (profile) => {
-  const normalizedProfile = {
-    userId: profile?.userId || userProfile.value?.userId || null,
-    nickName: profile?.nickName || defaultNickname,
-    avatarUrl: isHttpUrl(profile?.avatarUrl) ? profile.avatarUrl : defaultAvatar
-  }
-  userProfile.value = normalizedProfile
-  setUserProfile(normalizedProfile)
-  setPrivacyConsent(true)
+const handleLoginSuccess = async () => {
+  userProfile.value = getUserProfile()
   hasConsented.value = true
-}
-
-const handleChooseAvatar = (event) => { pendingAvatarUrl.value = event?.detail?.avatarUrl || '' }
-const handleNicknameInput = (event) => { pendingNickname.value = event?.detail?.value?.trim?.() || '' }
-
-const getErrorMessage = (error, fallback = '操作失败') => error?.message || error?.errMsg || error?.data?.message || fallback
-
-const resolveAvatarForLogin = async () => {
-  const avatarUrl = pendingAvatarUrl.value.trim()
-  if (!avatarUrl) return ''
-  if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl
-  return uploadMiniappAvatar(avatarUrl)
-}
-
-const runLoginFlow = async () => {
-  authLoading.value = true
-  try {
-    const uploadedAvatarUrl = await resolveAvatarForLogin()
-    const loginRes = await requestLoginCode()
-    if (!loginRes?.code) throw new Error('login code missing')
-    const authRes = await request({
-      url: `${baseUrl}/api/auth/miniapp/login`,
-      method: 'POST',
-      auth: false,
-      data: { code: loginRes.code, nickName: pendingNickname.value, avatarUrl: uploadedAvatarUrl }
-    })
-    if (authRes.statusCode !== 200) throw new Error(authRes.data?.message || `login failed: ${authRes.statusCode}`)
-    if (!authRes.data?.sessionToken) throw new Error(authRes.data?.message || 'session token missing')
-    setSessionToken(authRes.data.sessionToken)
-    normalizeProfile({
-      userId: authRes.data.userId,
-      nickName: authRes.data.nickName || pendingNickname.value,
-      avatarUrl: authRes.data.avatarUrl || uploadedAvatarUrl
-    })
-    uni.showToast({ title: '登录成功', icon: 'success' })
-    await loadPageData()
-    await tryConfirmPendingPluginLogin()
-    continuePendingAction()
-  } catch (error) {
-    console.error('runLoginFlow failed', error)
-    clearSessionToken()
-    uni.showToast({ title: getErrorMessage(error), icon: 'none' })
-  } finally {
-    authLoading.value = false
-  }
-}
-
-const handleAgreeAndContinue = async () => {
-  if (!hasConsented.value && (!userAgreementChecked.value || !privacyPolicyChecked.value)) {
-    uni.showToast({ title: '请先同意两个协议', icon: 'none' })
-    return
-  }
-  try {
-    await requestWechatPrivacyAuthorize()
-  } catch (error) {
-    uni.showToast({ title: '需要先完成隐私授权', icon: 'none' })
-    return
-  }
-  setPrivacyConsent(true)
-  hasConsented.value = true
-}
-
-const handleProfileConfirm = async () => {
-  if (!pendingAvatarUrl.value) {
-    uni.showToast({ title: '请先选择头像', icon: 'none' })
-    return
-  }
-  if (!pendingNickname.value) {
-    uni.showToast({ title: '请输入昵称', icon: 'none' })
-    return
-  }
-  await runLoginFlow()
+  authPromptVisible.value = false
+  await loadPageData()
+  await tryConfirmPendingPluginLogin()
+  continuePendingAction()
 }
 
 const confirmPluginLogin = async (token) => {
@@ -590,10 +463,15 @@ const confirmPluginLogin = async (token) => {
 
 const consumePluginLoginOptions = (options = {}) => {
   const rawScene = options?.scene ? decodeURIComponent(options.scene) : ''
+  if (rawScene.startsWith('pinv_')) {
+    uni.setStorageSync(INVITE_SCENE_KEY, rawScene)
+    return 'invite'
+  }
   const token = rawScene || options?.token || ''
-  if (!token) return
+  if (!token) return ''
   pendingPluginLoginToken.value = token
   setPluginLoginToken(token)
+  return 'plugin'
 }
 
 const tryConfirmPendingPluginLogin = async () => {
@@ -607,6 +485,10 @@ const refreshStoredProfile = async () => {
   if (!getSessionToken()) return
   try {
     const res = await request({ url: `${baseUrl}/api/auth/me` })
+    if (res.statusCode === 401) {
+      markLoggedOut()
+      return
+    }
     if (res.statusCode !== 200 || !isHttpUrl(res.data?.avatarUrl)) return
     const nextProfile = {
       userId: res.data.userId || userProfile.value?.userId || null,
@@ -634,24 +516,28 @@ const stopAutoRefresh = () => {
 }
 
 onLoad((options) => {
-  consumePluginLoginOptions(options)
+  const entry = consumePluginLoginOptions(options)
   hasConsented.value = getPrivacyConsent()
   userProfile.value = getUserProfile()
-  pendingAvatarUrl.value = isHttpUrl(userProfile.value?.avatarUrl) ? userProfile.value.avatarUrl : ''
-  pendingNickname.value = userProfile.value?.nickName && userProfile.value.nickName !== defaultNickname ? userProfile.value.nickName : ''
-  if (hasConsented.value && profileCompleted.value && getSessionToken()) loadPageData({ silent: true })
-  const openedForLogin = Boolean(options?.scene || options?.token)
+  if (isLoggedIn.value) loadPageData({ silent: true })
+  if (entry === 'invite') {
+    uni.switchTab({ url: '/pages/watermark/home' })
+    return
+  }
+  const openedForLogin = entry === 'plugin'
   if (openedForLogin && authRequired.value) openAuthPrompt('plugin')
-  tryConfirmPendingPluginLogin()
+  if (openedForLogin) tryConfirmPendingPluginLogin()
 })
 
 onShow(async () => {
   userProfile.value = getUserProfile()
   pendingPluginLoginToken.value = getPluginLoginToken() || pendingPluginLoginToken.value
   if (getSessionToken()) await refreshStoredProfile()
-  pendingAvatarUrl.value = isHttpUrl(userProfile.value?.avatarUrl) ? userProfile.value.avatarUrl : pendingAvatarUrl.value
-  pendingNickname.value = userProfile.value?.nickName && userProfile.value.nickName !== defaultNickname ? userProfile.value.nickName : pendingNickname.value
-  if (!profileCompleted.value || !getSessionToken()) {
+  if (uni.getStorageSync(PENDING_PAGE_KEY) === 'watermark' && isLoggedIn.value) {
+    uni.removeStorageSync(PENDING_PAGE_KEY)
+    uni.switchTab({ url: '/pages/watermark/home' })
+  }
+  if (!isLoggedIn.value) {
     stopAutoRefresh()
     return
   }
@@ -671,7 +557,9 @@ watch(tagKeyword, () => {
 
 <style>
 .page { min-height: 100vh; background: #F8F7FC; padding-bottom: 32rpx; }
-.topbar { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx 0; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; padding: 24rpx 32rpx 0; }
+.topbar-avatar-wrap { flex-shrink: 0; }
+.topbar-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #EEE9FF; border: 4rpx solid #ffffff; box-shadow: 0 6rpx 16rpx rgba(15, 23, 42, 0.1); }
 .topbar-title { font-size: 48rpx; font-weight: 700; color: #0f172a; letter-spacing: -0.5rpx; }
 .topbar-subtitle { margin-top: 8rpx; font-size: 26rpx; color: #64748b; }
 .card, .login-card, .modal-card { border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); }
@@ -682,8 +570,10 @@ watch(tagKeyword, () => {
 .hero-title { margin-top: 8rpx; font-size: 38rpx; line-height: 1.35; font-weight: 700; color: #0f172a; }
 .hero-text { margin-top: 8rpx; font-size: 26rpx; line-height: 1.7; color: #64748b; }
 .hero-user { display: flex; align-items: center; margin-top: 16rpx; padding: 24rpx 24rpx 24rpx 0; border-radius: 32rpx; background: rgba(248, 247, 252, 0.8); border: 1rpx solid #EAE7F2; }
+.hero-user.logged { padding: 24rpx 28rpx; }
 .avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #EEE9FF; border: 4rpx solid #ffffff; box-shadow: 0 4rpx 12rpx rgba(15, 23, 42, 0.06); }
 .user-meta { flex: 1; min-width: 0; margin-left: 28rpx; }
+.user-meta.flush { margin-left: 0; }
 .user-name { font-size: 28rpx; font-weight: 600; color: #0f172a; }
 .user-tip { margin-top: 6rpx; font-size: 20rpx; line-height: 1.5; color: #64748b; white-space: nowrap; }
 .hero-actions { margin-top: 16rpx; }

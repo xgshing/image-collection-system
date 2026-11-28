@@ -6,6 +6,7 @@ import com.qcloud.cos.auth.BasicCOSCredentials;
 import com.qcloud.cos.auth.COSCredentials;
 import com.qcloud.cos.http.HttpMethodName;
 import com.qcloud.cos.http.HttpProtocol;
+import com.qcloud.cos.model.COSObject;
 import com.qcloud.cos.model.GeneratePresignedUrlRequest;
 import com.qcloud.cos.model.ObjectMetadata;
 import com.qcloud.cos.model.PutObjectRequest;
@@ -38,6 +39,17 @@ public class CosStorageClient {
                     metadata
             );
             client.putObject(request);
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    public byte[] read(StorageProperties.Cos cos, String key) {
+        COSClient client = buildClient(cos);
+        try (COSObject object = client.getObject(cos.getBucket(), key)) {
+            return object.getObjectContent().readAllBytes();
+        } catch (Exception ex) {
+            throw new IllegalStateException("read cos object failed", ex);
         } finally {
             client.shutdown();
         }

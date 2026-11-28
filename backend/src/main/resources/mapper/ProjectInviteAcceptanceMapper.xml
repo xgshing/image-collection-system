@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.xgsheng.backend.mapper.ProjectInviteAcceptanceMapper">
+
+    <select id="findByInviteAndUser" resultType="com.xgsheng.backend.entity.ProjectInviteAcceptance">
+        SELECT id,
+               invite_id,
+               invitee_user_id,
+               decision,
+               decided_at
+        FROM project_invite_acceptance
+        WHERE invite_id = #{inviteId}
+          AND invitee_user_id = #{userId}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO project_invite_acceptance (invite_id, invitee_user_id, decision, decided_at)
+        VALUES (#{inviteId}, #{userId}, #{decision}, #{decidedAt})
+    </insert>
+
+    <update id="updateRejectedToAccepted">
+        UPDATE project_invite_acceptance
+        SET decision = 'accepted',
+            decided_at = #{decidedAt}
+        WHERE id = #{id}
+          AND invite_id = #{inviteId}
+          AND invitee_user_id = #{userId}
+          AND decision = 'rejected'
+    </update>
+
+</mapper>

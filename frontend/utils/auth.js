@@ -28,6 +28,11 @@ export const clearSessionToken = () => {
   uni.removeStorageSync(SESSION_TOKEN_KEY)
 }
 
+export const clearAccountSession = () => {
+  clearSessionToken()
+  uni.removeStorageSync(USER_PROFILE_KEY)
+}
+
 export const getPluginLoginToken = () => uni.getStorageSync(PLUGIN_LOGIN_TOKEN_KEY) || ''
 
 export const setPluginLoginToken = (token) => {
@@ -36,4 +41,11 @@ export const setPluginLoginToken = (token) => {
 
 export const clearPluginLoginToken = () => {
   uni.removeStorageSync(PLUGIN_LOGIN_TOKEN_KEY)
+}
+
+const DEFAULT_NICKNAME = '微信用户'
+
+export const isAccountReady = (profile = getUserProfile(), token = getSessionToken()) => {
+  const avatar = String(profile?.avatarUrl || '')
+  return Boolean(token && profile?.nickName && profile.nickName !== DEFAULT_NICKNAME && /^https?:\/\//i.test(avatar))
 }

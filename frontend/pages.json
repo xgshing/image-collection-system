@@ -35,6 +35,34 @@
       "style": {
         "navigationBarTitleText": "协议详情"
       }
+    },
+    {
+      "path": "pages/watermark/home",
+      "style": {
+        "navigationBarTitleText": "水印拍照"
+      }
+    },
+    {
+      "path": "pages/watermark/camera",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#000000"
+      }
+    },
+    {
+      "path": "pages/watermark/preview",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "水印预览与记录",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    {
+      "path": "pages/watermark/detail",
+      "style": {
+        "navigationBarTitleText": "照片详情"
+      }
     }
   ],
   "globalStyle": {
@@ -54,6 +82,12 @@
         "text": "首页",
         "iconPath": "static/tabbar/home.png",
         "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/watermark/home",
+        "text": "水印相机",
+        "iconPath": "static/tabbar/camera.png",
+        "selectedIconPath": "static/tabbar/camera-active.png"
       },
       {
         "pagePath": "pages/plugin/plugin",

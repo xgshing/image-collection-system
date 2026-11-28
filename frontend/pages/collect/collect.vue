@@ -298,7 +298,14 @@ const submit = async () => {
 onLoad(async (options) => {
   managingTags.value = options?.manageTags === '1'
   try {
-    await requestAvailableTags()
+    const res = await request({ url: `${baseUrl}/api/image/tags` })
+    if (res.statusCode === 401) {
+      uni.showToast({ title: '请先登录', icon: 'none' })
+      setTimeout(() => uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index' }) }), 400)
+      return
+    }
+    if (res.statusCode !== 200 || !Array.isArray(res.data)) throw new Error('request tags failed')
+    syncAvailableTags(res.data)
   } catch (error) {
     uni.showToast({ title: '加载标签失败', icon: 'none' })
   }

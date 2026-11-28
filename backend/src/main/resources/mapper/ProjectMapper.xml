@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.xgsheng.backend.mapper.ProjectMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO project (name,
+                             owner_user_id,
+                             watermark_enabled,
+                             default_watermark_position,
+                             status,
+                             created_at,
+                             updated_at)
+        VALUES (#{name},
+                #{ownerUserId},
+                #{watermarkEnabled},
+                #{defaultWatermarkPosition},
+                #{status},
+                #{createdAt},
+                #{updatedAt})
+    </insert>
+
+    <select id="lockById" resultType="com.xgsheng.backend.entity.Project">
+        SELECT id,
+               name,
+               owner_user_id,
+               watermark_enabled,
+               default_watermark_position,
+               status,
+               created_at,
+               updated_at
+        FROM project
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <update id="updateOwner">
+        UPDATE project
+        SET owner_user_id = #{newOwnerUserId},
+            updated_at = #{updatedAt}
+        WHERE id = #{projectId}
+          AND owner_user_id = #{previousOwnerUserId}
+    </update>
+
+    <select id="findById" resultType="com.xgsheng.backend.entity.Project">
+        SELECT id,
+               name,
+               owner_user_id,
+               watermark_enabled,
+               default_watermark_position,
+               status,
+               created_at,
+               updated_at
+        FROM project
+        WHERE id = #{id}
+    </select>
+
+    <update id="updateActive">
+        UPDATE project
+        SET name = #{name},
+            watermark_enabled = #{watermarkEnabled},
+            default_watermark_position = #{defaultWatermarkPosition},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND status = 'active'
+          AND owner_user_id = #{ownerUserId}
+    </update>
+
+    <update id="archiveActive">
+        UPDATE project
+        SET status = 'archived',
+            updated_at = #{updatedAt}
+        WHERE id = #{projectId}
+          AND status = 'active'
+          AND owner_user_id = #{ownerUserId}
+    </update>
+
+    <delete id="deleteMessagesForProject">
+        DELETE user_message
+        FROM user_message
+        LEFT JOIN project_invite ON project_invite.id = user_message.invite_id
+        WHERE user_message.project_id = #{projectId}
+           OR project_invite.project_id = #{projectId}
+    </delete>
+
+    <delete id="deleteAcceptancesForProject">
+        DELETE project_invite_acceptance
+        FROM project_invite_acceptance
+        INNER JOIN project_invite ON project_invite.id = project_invite_acceptance.invite_id
+        WHERE project_invite.project_id = #{projectId}
+    </delete>
+
+    <delete id="deleteInvitesForProject">
+        DELETE FROM project_invite
+        WHERE project_id = #{projectId}
+    </delete>
+
+    <delete id="deletePhotosForProject">
+        DELETE FROM project_photo
+        WHERE project_id = #{projectId}
+    </delete>
+
+    <delete id="deleteMembersForProject">
+        DELETE FROM project_member
+        WHERE project_id = #{projectId}
+    </delete>
+
+    <delete id="deleteArchived">
+        DELETE FROM project
+        WHERE id = #{projectId}
+          AND status = 'archived'
+          AND owner_user_id = #{ownerUserId}
+    </delete>
+
+    <sql id="activeMemberCount">
+        (SELECT COUNT(*)
+         FROM project_member active_member
+         WHERE active_member.project_id = p.id
+           AND active_member.status = 'active')
+    </sql>
+
+    <select id="listActiveForUser" resultType="com.xgsheng.backend.entity.ProjectSummaryRow">
+        SELECT p.id,
+               p.name,
+               p.status,
+               p.watermark_enabled,
+               p.default_watermark_position,
+               m.role,
+               owner_user.nick_name AS owner_nick_name,
+               <include refid="activeMemberCount"/> AS member_count
+        FROM project_member m
+        INNER JOIN project p ON p.id = m.project_id
+        INNER JOIN user owner_user ON owner_user.id = p.owner_user_id
+        WHERE m.user_id = #{userId}
+          AND m.status = 'active'
+        ORDER BY p.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countActiveForUser" resultType="long">
+        SELECT COUNT(*)
+        FROM project_member m
+        WHERE m.user_id = #{userId}
+          AND m.status = 'active'
+    </select>
+
+    <select id="findActiveDetail" resultType="com.xgsheng.backend.entity.ProjectSummaryRow">
+        SELECT p.id,
+               p.name,
+               p.status,
+               p.watermark_enabled,
+               p.default_watermark_position,
+               p.created_at,
+               p.updated_at,
+               m.role,
+               owner_user.nick_name AS owner_nick_name,
+               <include refid="activeMemberCount"/> AS member_count
+        FROM project_member m
+        INNER JOIN project p ON p.id = m.project_id
+        INNER JOIN user owner_user ON owner_user.id = p.owner_user_id
+        WHERE p.id = #{projectId}
+          AND m.user_id = #{userId}
+          AND m.status = 'active'
+    </select>
+
+</mapper>

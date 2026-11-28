@@ -5,8 +5,8 @@
 <mapper namespace="com.xgsheng.backend.mapper.ImageMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO image(user_id, url, local_url, md5, width, height, create_time)
-        VALUES (#{userId}, #{url}, #{localUrl}, #{md5}, #{width}, #{height}, #{createTime})
+        INSERT INTO image(user_id, url, local_url, md5, origin, width, height, create_time)
+        VALUES (#{userId}, #{url}, #{localUrl}, #{md5}, #{origin}, #{width}, #{height}, #{createTime})
     </insert>
 
     <select id="findByMd5" resultType="com.xgsheng.backend.entity.Image">
@@ -21,12 +21,22 @@
             LIMIT 1
     </select>
 
+    <select id="lockByOwner" resultType="com.xgsheng.backend.entity.Image">
+        SELECT * FROM image
+        WHERE user_id = #{userId} AND id = #{id}
+        FOR UPDATE
+    </select>
+
     <select id="findByTag" resultType="com.xgsheng.backend.entity.Image">
         SELECT i.*
         FROM image i
         INNER JOIN image_tag it ON i.id = it.image_id
         INNER JOIN tag t ON it.tag_id = t.id
         WHERE i.user_id = #{userId} AND t.name = #{tag}
+          AND i.origin = 'collect'
+          AND NOT EXISTS (
+              SELECT 1 FROM project_photo pp WHERE pp.image_id = i.id
+          )
         ORDER BY i.create_time DESC
     </select>
 
@@ -36,17 +46,37 @@
         INNER JOIN image_tag it ON i.id = it.image_id
         INNER JOIN tag t ON it.tag_id = t.id
         WHERE i.user_id = #{userId}
+          AND i.origin = 'collect'
           AND t.name IN
           <foreach collection="tags" item="tag" open="(" separator="," close=")">
               #{tag}
           </foreach>
+          AND NOT EXISTS (
+              SELECT 1 FROM project_photo pp WHERE pp.image_id = i.id
+          )
         ORDER BY i.create_time DESC
     </select>
 
     <select id="findAll" resultType="com.xgsheng.backend.entity.Image">
-        SELECT * FROM image
-        WHERE user_id = #{userId}
-        ORDER BY create_time DESC
+        SELECT i.*
+        FROM image i
+        WHERE i.user_id = #{userId}
+          AND i.origin = 'collect'
+          AND NOT EXISTS (
+              SELECT 1 FROM project_photo pp WHERE pp.image_id = i.id
+          )
+        ORDER BY i.create_time DESC
+    </select>
+
+    <select id="findRecentTagNames" resultType="java.lang.String">
+        SELECT t.name
+        FROM image i
+        INNER JOIN image_tag it ON i.id = it.image_id
+        INNER JOIN tag t ON t.id = it.tag_id
+        WHERE i.user_id = #{userId}
+          AND i.origin = 'collect'
+        GROUP BY t.id, t.name
+        ORDER BY MAX(i.create_time) DESC, t.name ASC
     </select>
 
     <select id="findAllTagNames" resultType="java.lang.String">
@@ -55,6 +85,7 @@
         INNER JOIN image_tag it ON i.id = it.image_id
         INNER JOIN tag t ON t.id = it.tag_id
         WHERE i.user_id = #{userId}
+          AND i.origin = 'collect'
         GROUP BY t.id, t.name
         ORDER BY COUNT(*) DESC, t.name ASC
     </select>
@@ -104,6 +135,22 @@
 
     <delete id="deleteById">
         DELETE FROM image WHERE user_id = #{userId} AND id = #{id}
+    </delete>
+
+    <update id="updateOrigin">
+        UPDATE image
+        SET origin = #{origin}
+        WHERE user_id = #{userId} AND id = #{id}
+    </update>
+
+    <select id="lockProjectOriginById" resultType="com.xgsheng.backend.entity.Image">
+        SELECT * FROM image
+        WHERE id = #{id} AND origin = 'project'
+        FOR UPDATE
+    </select>
+
+    <delete id="deleteProjectOriginImageById">
+        DELETE FROM image WHERE id = #{id} AND origin = 'project'
     </delete>
 
     <update id="updateCreateTime">

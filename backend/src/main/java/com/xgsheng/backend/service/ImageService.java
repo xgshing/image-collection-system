@@ -10,7 +10,10 @@ public interface ImageService {
 
     Map<String, Object> saveByUrl(Long userId, String url, String tags, String referer);
 
-    Map<String, Object> upload(Long userId, MultipartFile file, String tags);
+    /**
+     * @param origin {@link Image#ORIGIN_PROJECT} 表示水印相机原图；其它值按收藏图片处理。
+     */
+    Map<String, Object> upload(Long userId, MultipartFile file, String tags, String origin);
 
     List<Image> list(Long userId, String tag);
 
@@ -19,6 +22,8 @@ public interface ImageService {
     Image detail(Long userId, Long id);
 
     List<String> listTags(Long userId);
+
+    List<String> listRecentTags(Long userId);
 
     boolean deleteTag(Long userId, String tagName);
 

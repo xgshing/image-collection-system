@@ -1,13 +1,16 @@
 package com.xgsheng.backend.service.impl;
 
 import com.xgsheng.backend.entity.Image;
+import com.xgsheng.backend.exception.BusinessException;
 import com.xgsheng.backend.mapper.ImageMapper;
+import com.xgsheng.backend.mapper.ProjectPhotoMapper;
+import com.xgsheng.backend.project.ProjectPhotoRules;
 import com.xgsheng.backend.service.ImageService;
 import com.xgsheng.backend.service.StorageService;
 import com.xgsheng.backend.util.DownloadUtil;
 import com.xgsheng.backend.util.Md5Util;
-import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -24,11 +27,17 @@ import java.util.Map;
 @Service
 public class ImageServiceImpl implements ImageService {
 
-    @Resource
-    private ImageMapper imageMapper;
+    private final ImageMapper imageMapper;
+    private final StorageService storageService;
+    private final ProjectPhotoMapper projectPhotoMapper;
 
-    @Resource
-    private StorageService storageService;
+    public ImageServiceImpl(ImageMapper imageMapper,
+                            StorageService storageService,
+                            ProjectPhotoMapper projectPhotoMapper) {
+        this.imageMapper = imageMapper;
+        this.storageService = storageService;
+        this.projectPhotoMapper = projectPhotoMapper;
+    }
 
     @Override
     public Map<String, Object> saveByUrl(Long userId, String url, String tags, String referer) {
@@ -41,14 +50,14 @@ public class ImageServiceImpl implements ImageService {
 
         try {
             byte[] bytes = DownloadUtil.download(url.trim(), referer);
-            return saveImage(userId, bytes, tags, url.trim(), extensionFromUrl(url), null, true);
+            return saveImage(userId, bytes, tags, url.trim(), extensionFromUrl(url), null, true, Image.ORIGIN_COLLECT);
         } catch (Exception ex) {
             throw new IllegalStateException("download image failed", ex);
         }
     }
 
     @Override
-    public Map<String, Object> upload(Long userId, MultipartFile file, String tags) {
+    public Map<String, Object> upload(Long userId, MultipartFile file, String tags, String origin) {
         if (userId == null) {
             throw new IllegalArgumentException("userId is required");
         }
@@ -64,7 +73,8 @@ public class ImageServiceImpl implements ImageService {
                     "",
                     extensionFromFilename(file.getOriginalFilename()),
                     file.getContentType(),
-                    false
+                    false,
+                    Image.ORIGIN_PROJECT.equals(origin) ? Image.ORIGIN_PROJECT : Image.ORIGIN_COLLECT
             );
         } catch (IOException ex) {
             throw new IllegalStateException("read upload failed", ex);
@@ -136,6 +146,11 @@ public class ImageServiceImpl implements ImageService {
     }
 
     @Override
+    public List<String> listRecentTags(Long userId) {
+        return imageMapper.findRecentTagNames(userId);
+    }
+
+    @Override
     public boolean deleteTag(Long userId, String tagName) {
         if (userId == null || tagName == null || tagName.isBlank()) {
             return false;
@@ -195,11 +210,21 @@ public class ImageServiceImpl implements ImageService {
         return true;
     }
 
+    /**
+     * 由 Spring 代理调用。同类内部自调用不会打开这个事务。
+     * 行锁、项目照片引用检查、标签删除和图片删除都在同一事务里。
+     * 项目照片写入锁定同一张 image 行，所以不会先留下照片再把图片删掉。
+     * 不删除 project_photo，也不删除对象存储里的原图。
+     */
     @Override
+    @Transactional
     public boolean delete(Long userId, Long id) {
-        Image image = imageMapper.findById(userId, id);
+        Image image = imageMapper.lockByOwner(userId, id);
         if (image == null) {
             return false;
+        }
+        if (projectPhotoMapper.countByImageId(id) > 0) {
+            throw BusinessException.badRequest(ProjectPhotoRules.DELETE_BLOCKED);
         }
 
         imageMapper.deleteImageTagByImageId(id);
@@ -213,7 +238,8 @@ public class ImageServiceImpl implements ImageService {
                                           String sourceUrl,
                                           String extension,
                                           String contentType,
-                                          boolean updateCreateTimeWhenExists) {
+                                          boolean updateCreateTimeWhenExists,
+                                          String origin) {
         if (bytes == null || bytes.length == 0) {
             throw new IllegalArgumentException("image content is empty");
         }
@@ -229,6 +255,11 @@ public class ImageServiceImpl implements ImageService {
                     imageMapper.updateCreateTime(userId, existing.getId(), now);
                     existing.setCreateTime(now);
                 }
+                // 用户主动收藏了一张之前只属于水印项目的照片：转为收藏，删除项目照片时不再清理它
+                if (Image.ORIGIN_COLLECT.equals(origin) && Image.ORIGIN_PROJECT.equals(existing.getOrigin())) {
+                    imageMapper.updateOrigin(userId, existing.getId(), Image.ORIGIN_COLLECT);
+                    existing.setOrigin(Image.ORIGIN_COLLECT);
+                }
                 mergeTags(existing.getId(), normalizedTags);
                 fillTags(existing);
                 return buildResult(existing, "exists", "image already exists");
@@ -238,6 +269,7 @@ public class ImageServiceImpl implements ImageService {
             image.setUserId(userId);
             image.setUrl(sourceUrl == null ? "" : sourceUrl);
             image.setMd5(md5);
+            image.setOrigin(origin);
             image.setCreateTime(now);
             image.setLocalUrl(storageService.storeBytes(
                     bytes,

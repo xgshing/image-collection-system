@@ -37,15 +37,17 @@ public class ImageController {
     @PostMapping("/upload")
     public Object upload(@RequestParam("file") MultipartFile file,
                          @RequestParam(value = "tags", required = false) String tags,
-                         @RequestParam(value = "tag", required = false) String tag) {
+                         @RequestParam(value = "tag", required = false) String tag,
+                         @RequestParam(value = "origin", required = false) String origin) {
         Long userId = AuthContext.requireUserId();
         String resolvedTags = tags != null ? tags : tag;
-        log.info("Uploading image for userId={}, originalFilename={}, size={}, tags={}",
+        log.info("Uploading image for userId={}, originalFilename={}, size={}, tags={}, origin={}",
                 userId,
                 file.getOriginalFilename(),
                 file.getSize(),
-                resolvedTags);
-        return imageService.upload(userId, file, resolvedTags);
+                resolvedTags,
+                origin);
+        return imageService.upload(userId, file, resolvedTags, origin);
     }
 
     @GetMapping("/list")
@@ -77,8 +79,11 @@ public class ImageController {
     }
 
     @GetMapping("/tags")
-    public Object tags() {
+    public Object tags(@RequestParam(value = "order", required = false) String order) {
         Long userId = AuthContext.requireUserId();
+        if ("recent".equalsIgnoreCase(order)) {
+            return imageService.listRecentTags(userId);
+        }
         return imageService.listTags(userId);
     }
 

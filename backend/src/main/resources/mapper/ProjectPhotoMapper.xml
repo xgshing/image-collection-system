@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.xgsheng.backend.mapper.ProjectPhotoMapper">
+
+    <sql id="columns">
+        p.id,
+        p.project_id,
+        p.image_id,
+        p.photographer_user_id,
+        p.taken_at,
+        p.timezone,
+        p.note,
+        p.location_text,
+        p.latitude,
+        p.longitude,
+        p.coordinate_system,
+        p.location_accuracy_m,
+        p.location_captured_at,
+        p.gps_status,
+        p.geocode_status,
+        p.weather_text,
+        p.temperature_c,
+        p.humidity_percent,
+        p.weather_code,
+        p.weather_provider,
+        p.weather_observed_at,
+        p.weather_status,
+        p.watermark_position,
+        p.watermark_visible,
+        p.project_name_snapshot,
+        p.width_px,
+        p.height_px,
+        p.client_request_id,
+        p.created_at,
+        p.updated_at
+    </sql>
+
+    <select id="countByProjectId" resultType="int">
+        SELECT COUNT(*)
+        FROM project_photo
+        WHERE project_id = #{projectId}
+    </select>
+
+    <select id="countByImageId" resultType="int">
+        SELECT COUNT(*)
+        FROM project_photo
+        WHERE image_id = #{imageId}
+    </select>
+
+    <select id="findByIdInProject" resultType="com.xgsheng.backend.entity.ProjectPhoto">
+        SELECT <include refid="columns"/>,
+               u.nick_name AS photographer_nick_name,
+               i.local_url AS stored_url
+        FROM project_photo p
+        INNER JOIN user u ON u.id = p.photographer_user_id
+        INNER JOIN image i ON i.id = p.image_id
+        WHERE p.project_id = #{projectId}
+          AND p.id = #{photoId}
+    </select>
+
+    <select id="findByImageId" resultType="com.xgsheng.backend.entity.ProjectPhoto">
+        SELECT <include refid="columns"/>
+        FROM project_photo p
+        WHERE p.image_id = #{imageId}
+    </select>
+
+    <select id="findByPhotographerAndRequest" resultType="com.xgsheng.backend.entity.ProjectPhoto">
+        SELECT <include refid="columns"/>
+        FROM project_photo p
+        WHERE p.photographer_user_id = #{photographerUserId}
+          AND p.client_request_id = #{clientRequestId}
+    </select>
+
+    <select id="listByProject" resultType="com.xgsheng.backend.entity.ProjectPhoto">
+        SELECT <include refid="columns"/>,
+               u.nick_name AS photographer_nick_name,
+               i.local_url AS stored_url
+        FROM project_photo p
+        INNER JOIN user u ON u.id = p.photographer_user_id
+        INNER JOIN image i ON i.id = p.image_id
+        WHERE p.project_id = #{projectId}
+        ORDER BY p.taken_at DESC, p.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO project_photo (project_id,
+                                   image_id,
+                                   photographer_user_id,
+                                   taken_at,
+                                   timezone,
+                                   note,
+                                   location_text,
+                                   latitude,
+                                   longitude,
+                                   coordinate_system,
+                                   location_accuracy_m,
+                                   location_captured_at,
+                                   gps_status,
+                                   geocode_status,
+                                   weather_text,
+                                   temperature_c,
+                                   humidity_percent,
+                                   weather_code,
+                                   weather_provider,
+                                   weather_observed_at,
+                                   weather_status,
+                                   watermark_position,
+                                   watermark_visible,
+                                   project_name_snapshot,
+                                   width_px,
+                                   height_px,
+                                   client_request_id,
+                                   created_at,
+                                   updated_at)
+        VALUES (#{projectId},
+                #{imageId},
+                #{photographerUserId},
+                #{takenAt},
+                #{timezone},
+                #{note},
+                #{locationText},
+                #{latitude},
+                #{longitude},
+                #{coordinateSystem},
+                #{locationAccuracyM},
+                #{locationCapturedAt},
+                #{gpsStatus},
+                #{geocodeStatus},
+                #{weatherText},
+                #{temperatureC},
+                #{humidityPercent},
+                #{weatherCode},
+                #{weatherProvider},
+                #{weatherObservedAt},
+                #{weatherStatus},
+                #{watermarkPosition},
+                #{watermarkVisible},
+                #{projectNameSnapshot},
+                #{widthPx},
+                #{heightPx},
+                #{clientRequestId},
+                #{createdAt},
+                #{updatedAt})
+    </insert>
+
+    <update id="updateEditable">
+        UPDATE project_photo
+        SET note = #{note},
+            watermark_position = #{watermarkPosition},
+            watermark_visible = #{watermarkVisible},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND project_id = #{projectId}
+          AND photographer_user_id = #{photographerUserId}
+    </update>
+
+    <delete id="deleteByIdInProject">
+        DELETE FROM project_photo
+        WHERE project_id = #{projectId}
+          AND id = #{photoId}
+    </delete>
+
+</mapper>

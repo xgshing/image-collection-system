@@ -103,6 +103,61 @@ public class StorageServiceImpl implements StorageService {
         return url;
     }
 
+    @Override
+    public int signedReadTtlSeconds() {
+        return (int) (READ_URL_TTL_MILLIS / 1000);
+    }
+
+    @Override
+    public byte[] readStoredBytes(String storedUrl) {
+        String value = storedUrl == null ? "" : storedUrl.trim();
+        if (value.isBlank()) {
+            throw new IllegalStateException("stored image is missing");
+        }
+        try {
+            if (useCosStorage()) {
+                String key = cosStorageClient.extractKeyFromUrl(storageProperties.getCos(), value);
+                if (key.isBlank()) {
+                    throw new IllegalStateException("stored image key is missing");
+                }
+                return cosStorageClient.read(storageProperties.getCos(), key);
+            }
+            return Files.readAllBytes(resolveLocalFile(value));
+        } catch (RuntimeException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalStateException("read stored image failed", ex);
+        }
+    }
+
+    private Path resolveLocalFile(String storedUrl) {
+        String basePath = normalizeBasePath(storageProperties.getLocalBasePath());
+        String path = storedUrl;
+        int scheme = path.indexOf("://");
+        if (scheme >= 0) {
+            int slash = path.indexOf('/', scheme + 3);
+            path = slash >= 0 ? path.substring(slash) : "";
+        }
+        int query = path.indexOf('?');
+        if (query >= 0) {
+            path = path.substring(0, query);
+        }
+        if (!path.startsWith(basePath + "/")) {
+            throw new IllegalStateException("stored image path is outside local storage");
+        }
+        String relative = path.substring(basePath.length() + 1);
+        String localDir = storageProperties.getLocalDir();
+        if (localDir == null || localDir.isBlank()) {
+            localDir = "uploads";
+        }
+        Path root = Paths.get(localDir).toAbsolutePath().normalize();
+        Path file = root.resolve(relative).normalize();
+        if (!file.startsWith(root)) {
+            throw new IllegalStateException("stored image path is outside local storage");
+        }
+        return file;
+    }
+
     private Date stableReadExpiration() {
         long now = System.currentTimeMillis();
         long expireAt = ((now + READ_URL_TTL_MILLIS) / READ_URL_GRID_MILLIS) * READ_URL_GRID_MILLIS;

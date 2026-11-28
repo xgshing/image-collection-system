@@ -16,6 +16,8 @@ let currentToken = "";
 let currentSessionToken = "";
 let selectedTags = [];
 let availableTags = [];
+let recentTags = [];
+let tagPointerInside = false;
 let isSaving = false;
 
 const loginSection = document.getElementById("loginSection");
@@ -30,6 +32,7 @@ const previewPlaceholder = document.getElementById("previewPlaceholder");
 const previewPlaceholderText = document.getElementById("previewPlaceholderText");
 const emptyState = document.getElementById("emptyState");
 const tagInput = document.getElementById("tagInput");
+const tagInputWrap = document.getElementById("tagInputWrap");
 const tagSuggestions = document.getElementById("tagSuggestions");
 const selectedTagsWrap = document.getElementById("selectedTags");
 const saveFeedback = document.getElementById("saveFeedback");
@@ -171,6 +174,17 @@ const fetchWithAuth = (url, options = {}) => {
     return fetch(url, { ...options, headers });
 };
 
+const handleUnauthorized = async () => {
+    await clearStoredProfile();
+    currentSessionToken = "";
+    availableTags = [];
+    recentTags = [];
+    clearComposer();
+    setFeedback("");
+    await createLoginSession();
+    loginStatus.textContent = "登录已失效，请重新扫码并在小程序中确认。";
+};
+
 const renderSelectedTags = () => {
     selectedTagsWrap.innerHTML = "";
     selectedTags.forEach((tag) => {
@@ -192,19 +206,26 @@ const renderSelectedTags = () => {
     });
 };
 
+const rememberRecentTags = (tags) => {
+    tags.filter(Boolean).forEach((tag) => {
+        recentTags = [tag, ...recentTags.filter((item) => item !== tag)];
+    });
+};
+
 const getFilteredSuggestions = () => {
     const keyword = tagInput.value.trim().toLowerCase();
-    return availableTags
+    return recentTags
         .filter((tag) => !selectedTags.includes(tag))
         .filter((tag) => !keyword || tag.toLowerCase().includes(keyword))
-        .slice(0, 8);
+        .slice(0, 4);
 };
 
 const renderSuggestions = () => {
     const suggestions = getFilteredSuggestions();
     tagSuggestions.innerHTML = "";
 
-    if (!suggestions.length || document.activeElement !== tagInput) {
+    const inputActive = document.activeElement === tagInput;
+    if (!suggestions.length || !tagPointerInside || !inputActive) {
         tagSuggestions.style.display = "none";
         return;
     }
@@ -233,6 +254,7 @@ const addTag = (value) => {
 
     selectedTags = [...selectedTags, tag];
     mergeAvailableTags([tag]);
+    rememberRecentTags([tag]);
     tagInput.value = "";
     renderSelectedTags();
     renderSuggestions();
@@ -241,17 +263,23 @@ const addTag = (value) => {
 const loadAvailableTags = async () => {
     if (!currentSessionToken) {
         availableTags = [];
+        recentTags = [];
         renderSuggestions();
         return;
     }
 
     try {
-        const response = await fetchWithAuth(baseUrl + "/api/image/tags");
+        const response = await fetchWithAuth(baseUrl + "/api/image/tags?order=recent");
+        if (response.status === 401) {
+            await handleUnauthorized();
+            return;
+        }
         if (!response.ok) {
             return;
         }
         const result = await response.json();
-        availableTags = Array.isArray(result) ? result.slice().sort((a, b) => a.localeCompare(b, "zh-CN")) : [];
+        recentTags = Array.isArray(result) ? result : [];
+        availableTags = recentTags.slice();
         renderSuggestions();
     } catch (error) {
         console.error("loadAvailableTags failed", error);
@@ -265,6 +293,10 @@ const refreshProfile = async () => {
 
     try {
         const response = await fetchWithAuth(baseUrl + "/api/auth/me");
+        if (response.status === 401) {
+            await handleUnauthorized();
+            return null;
+        }
         if (!response.ok) {
             return null;
         }
@@ -333,6 +365,71 @@ const checkLoginStatus = async () => {
     }
 };
 
+const extensionFromType = (type) => {
+    const value = (type || "").toLowerCase();
+    if (value.includes("jpeg") || value.includes("jpg")) {
+        return "jpg";
+    }
+    if (value.includes("webp")) {
+        return "webp";
+    }
+    if (value.includes("gif")) {
+        return "gif";
+    }
+    if (value.includes("bmp")) {
+        return "bmp";
+    }
+    return "png";
+};
+
+const fetchImageBlob = async (url, referer) => {
+    const attempts = [
+        {
+            credentials: "include",
+            headers: {
+                Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                Referer: referer || ""
+            }
+        },
+        {
+            credentials: "include",
+            headers: {
+                Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+            }
+        }
+    ];
+    let lastError = null;
+    for (const init of attempts) {
+        try {
+            const response = await fetch(url, init);
+            if (!response.ok) {
+                lastError = new Error("status " + response.status);
+                continue;
+            }
+            const blob = await response.blob();
+            if (blob.size > 0) {
+                return blob;
+            }
+            lastError = new Error("empty image");
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError || new Error("download image failed");
+};
+
+const uploadImageFromBrowser = async (url, referer, tags) => {
+    const blob = await fetchImageBlob(url, referer);
+    const extension = extensionFromType(blob.type);
+    const form = new FormData();
+    form.append("file", blob, "image." + extension);
+    form.append("tags", tags || "");
+    return fetchWithAuth(baseUrl + "/api/image/upload", {
+        method: "POST",
+        body: form
+    });
+};
+
 const saveImage = async () => {
     const storedAuth = await getStoredProfile();
     if (!storedAuth || !storedAuth.sessionToken) {
@@ -356,7 +453,7 @@ const saveImage = async () => {
     updateSaveButton();
     setFeedback("正在保存图片...", "info");
 
-    const response = await fetchWithAuth(baseUrl + "/api/image/saveByUrl", {
+    let response = await fetchWithAuth(baseUrl + "/api/image/saveByUrl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -366,23 +463,44 @@ const saveImage = async () => {
         })
     });
 
+    if (response.status === 401) {
+        await handleUnauthorized();
+        return;
+    }
+
     if (!response.ok) {
         let message = "保存失败，请稍后再试。";
+        let downloadBlocked = false;
         try {
             const payload = await response.json();
-            if (payload?.message === "download image failed") {
-                message = "该网站限制了原图下载，当前无法直接收藏。";
-            } else if (payload?.message) {
+            downloadBlocked = payload?.message === "download image failed";
+            if (!downloadBlocked && payload?.message) {
                 message = payload.message;
             }
         } catch (error) {
             console.error("parse error response failed", error);
         }
-        throw new Error(message);
+        if (!downloadBlocked) {
+            throw new Error(message);
+        }
+        try {
+            response = await uploadImageFromBrowser(imageUrl, pageUrl, requestedTags.join(","));
+        } catch (error) {
+            console.error(error);
+            throw new Error("该网站限制了原图下载，当前无法直接收藏。");
+        }
+        if (response.status === 401) {
+            await handleUnauthorized();
+            return;
+        }
+        if (!response.ok) {
+            throw new Error("该网站限制了原图下载，当前无法直接收藏。");
+        }
     }
 
     const result = await response.json();
     const resultTags = Array.isArray(result.tags) ? result.tags : [];
+    rememberRecentTags(requestedTags);
     const mergedNewTags = requestedTags.filter((tag) => resultTags.includes(tag));
     mergeAvailableTags([...resultTags, ...requestedTags]);
     await loadAvailableTags();
@@ -403,7 +521,35 @@ const saveImage = async () => {
     updateSaveButton();
 };
 
+const ensureContextMenu = () => {
+    chrome.contextMenus.create({
+        id: "saveCoverImage",
+        title: "收藏图片",
+        contexts: ["all"]
+    }, () => {
+        void chrome.runtime.lastError;
+    });
+};
+
+const injectCollector = () => {
+    if (!chrome.scripting?.executeScript) {
+        return;
+    }
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tabId = tabs[0]?.id;
+        if (tabId == null) {
+            return;
+        }
+        chrome.scripting.executeScript({
+            target: { tabId, allFrames: true },
+            files: ["content.js"]
+        }).catch(() => {});
+    });
+};
+
 const initialize = async () => {
+    ensureContextMenu();
+    injectCollector();
     chrome.storage.local.get(["imageUrl", "pageUrl", API_BASE_URL_KEY], async (res) => {
         baseUrl = normalizeBaseUrl(res[API_BASE_URL_KEY]);
         imageUrl = normalizeImageUrl(res.imageUrl);
@@ -438,6 +584,7 @@ logoutBtn.addEventListener("click", async () => {
     currentToken = "";
     currentSessionToken = "";
     availableTags = [];
+    recentTags = [];
     clearComposer();
     setFeedback("");
     await createLoginSession();
@@ -480,10 +627,14 @@ tagInput.addEventListener("focus", () => {
     renderSuggestions();
 });
 
-tagInput.addEventListener("blur", () => {
-    setTimeout(() => {
-        tagSuggestions.style.display = "none";
-    }, 120);
+tagInputWrap.addEventListener("mouseenter", () => {
+    tagPointerInside = true;
+    renderSuggestions();
+});
+
+tagInputWrap.addEventListener("mouseleave", () => {
+    tagPointerInside = false;
+    tagSuggestions.style.display = "none";
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {

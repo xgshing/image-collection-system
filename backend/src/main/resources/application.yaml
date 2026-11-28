@@ -9,3 +9,16 @@ mybatis:
   mapper-locations: classpath:mapper/*.xml
   configuration:
     map-underscore-to-camel-case: true
+
+external:
+  tencent-lbs-key: ${TENCENT_LBS_KEY:}
+  # 正式：私钥签发 JWT（推荐）。调试才用 qweather-jwt 静态 Token。
+  qweather-jwt: ${QWEATHER_JWT:}
+  qweather-api-host: ${QWEATHER_API_HOST:devapi.qweather.com}
+  qweather-private-key: ${QWEATHER_PRIVATE_KEY:}
+  qweather-private-key-path: ${QWEATHER_PRIVATE_KEY_PATH:}
+  qweather-kid: ${QWEATHER_KID:}
+  qweather-dev-id: ${QWEATHER_DEV_ID:}
+  qweather-project-id: ${QWEATHER_PROJECT_ID:}
+  tencent-speech-secret-id: ${TENCENT_SPEECH_SECRET_ID:}
+  tencent-speech-secret-key: ${TENCENT_SPEECH_SECRET_KEY:}

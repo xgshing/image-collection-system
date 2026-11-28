@@ -15,6 +15,8 @@ public interface ImageMapper {
 
     Image findById(@Param("userId") Long userId, @Param("id") Long id);
 
+    Image lockByOwner(@Param("userId") Long userId, @Param("id") Long id);
+
     List<Image> findByTag(@Param("userId") Long userId, @Param("tag") String tag);
 
     List<Image> findByTags(@Param("userId") Long userId, @Param("tags") List<String> tags);
@@ -22,6 +24,8 @@ public interface ImageMapper {
     List<Image> findAll(@Param("userId") Long userId);
 
     List<String> findAllTagNames(@Param("userId") Long userId);
+
+    List<String> findRecentTagNames(@Param("userId") Long userId);
 
     List<String> findTagNamesByImageId(@Param("imageId") Long imageId);
 
@@ -44,4 +48,13 @@ public interface ImageMapper {
     void updateCreateTime(@Param("userId") Long userId,
                           @Param("id") Long id,
                           @Param("createTime") java.util.Date createTime);
+
+    void updateOrigin(@Param("userId") Long userId,
+                      @Param("id") Long id,
+                      @Param("origin") String origin);
+
+    /** 锁定水印相机原图行（origin=project），删除项目照片时同步清理。 */
+    Image lockProjectOriginById(@Param("id") Long id);
+
+    void deleteProjectOriginImageById(@Param("id") Long id);
 }

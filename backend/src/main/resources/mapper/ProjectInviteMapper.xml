@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.xgsheng.backend.mapper.ProjectInviteMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO project_invite (project_id, inviter_user_id, token_hash, status, expires_at, created_at)
+        VALUES (#{projectId}, #{inviterUserId}, #{tokenHash}, 'active', #{expiresAt}, #{createdAt})
+    </insert>
+
+    <select id="findDetailByTokenHash" resultType="com.xgsheng.backend.entity.ProjectInvite">
+        SELECT i.id,
+               i.project_id,
+               i.inviter_user_id,
+               i.token_hash,
+               i.status,
+               i.expires_at,
+               i.revoked_at,
+               i.created_at,
+               p.name AS project_name,
+               p.status AS project_status,
+               u.nick_name AS inviter_nick_name
+        FROM project_invite i
+        INNER JOIN project p ON p.id = i.project_id
+        INNER JOIN user u ON u.id = i.inviter_user_id
+        WHERE i.token_hash = #{tokenHash}
+    </select>
+
+    <select id="lockByTokenHash" resultType="com.xgsheng.backend.entity.ProjectInvite">
+        SELECT id,
+               project_id,
+               inviter_user_id,
+               token_hash,
+               status,
+               expires_at,
+               revoked_at,
+               created_at
+        FROM project_invite
+        WHERE token_hash = #{tokenHash}
+        FOR UPDATE
+    </select>
+
+</mapper>

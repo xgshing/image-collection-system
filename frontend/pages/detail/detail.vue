@@ -268,7 +268,7 @@ onLoad((options) => {
 .page { min-height: 100vh; background: #F8F7FC; }
 .container { padding: 24rpx; }
 .image-wrapper, .info-card, .tag-card, .manage-box, .danger-box { border-radius: 24rpx; box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.06); }
-.image-wrapper { padding: 20rpx; background: #111827; }
+.image-wrapper { padding: 20rpx; background: #fff; }
 .info-card, .tag-card, .manage-box { margin-top: 24rpx; padding: 24rpx; background: #fff; }
 .danger-box { margin-top: 24rpx; padding: 24rpx; background: #fff6f5; }
 .section-header { display: flex; align-items: center; justify-content: space-between; }
